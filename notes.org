@@ -1,0 +1,83 @@
+# -*- eval: (auto-fill-mode 1) -*-
+#+STARTUP: indent logdone
+#+TODO: TODO FEEDBACK VERIFY | DONE CANCELED
+#+AUTHOR: Ferdinand Vanmaele
+#+TITLE: Tridiagonal Solvers (RPTS)
+
+* Kondition
+
+** Grenzen dynamisch bestimmen
+"Suchen" innerhalb eines bestimmten Bereichs
+1. Partition mit grösster Kondition bestimmen
+2. Obere/untere Grenze verschieben (schrittweise, bis k=max Zeilen)
+3. Überprüfe, ob sich die Kondition (und die des Nachbarblocks)
+   verbessert hat
+   - Zwischenwerte beibehalten, Minimum wählen
+4. Gehe zu Schritt 1
+
+** Halo
+With a 1 row/column halo, not all elements of interface between
+partitions (matrix seen as a graph) can be captured. The same holds
+for 2 row/columns (how about 3?)
+
+** TODO Plots
+Code um Plots für Konditionzahl (in Abhängigkeit der Partitionsgröße)
+zu erzeugen
+
+* Test matrices
+
+** TODO Python implementation
+
+** DONE Matlab implementation
+
+* Spikes
+
+** Skalieren
+Skaliere die Zeilen, wo Spikes gebildet werden
+- Plot im Zusammenhang mit der Kondition
+
+** Anfangswert
+Für ein gegebenes Band ist es schlecht, mit einem großen Wert das
+Spike zu berechnen (Ründungsfehler).
+- Schaue überhalb der Partitionsgrenzen, ob nicht ein besser geigneter
+  Wert verfügbar ist.
+- Zusammenhang mit der Kondition?
+- Werte unterhalb vom Spike werden immer kleiner (für allgemeine Matrizen)
+ 
+* Cyclic reduction
+
+** TODO Implementation in Python
+*** (Scaled) Pivoting
+*** Cyclic reduction
+*** Parallel cyclic reduction
+
+* Preconditioning
+We want to have a (stable) method where the condition of the coarse system is not (significantly) larger than the condition of the fine system.
+
+** Inner preconditioning
+:PROPERTIES:
+:URI:    https://uknowledge.uky.edu/cgi/viewcontent.cgi?article=1009&context=cs_facpub
+:END:
+Use preconditioning for coarse systems (in each recursion step) to
+avoid propagation of error.
+
+* Visualization
+Understand convergence behavior and impact of partition boundaries by
+visualizing matrix entries.
+
+** TODO Python implementation
+:PROPERTIES:
+:URI:      https://stackoverflow.com/questions/42116671/how-to-plot-a-2d-matrix-in-python-with-colorbar-like-imagesc-in-matlab
+:END:
+#+begin_src python
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.matshow(np.random.random((50,50)));
+plt.colorbar()
+plt.show()
+#+end_src
+
+* TODO Github repository
+Store all implemented code (Python) to a github repository
+
