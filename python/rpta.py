@@ -5,10 +5,9 @@
 import numpy as np
 from math import ceil
 import sys
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
 
-import condition
+from condition import generate_static_partition, tridiag_cond_upshift
+from condition import plot_coarse_system
 
 def apply_threshold(x, y, eps):
     xt, yt = [0, 0]
@@ -124,6 +123,7 @@ def eliminate_band(a, b, c, d, threshold=0):
     return s_p[0], s_p[1], s_p[2], s_p[4]
 
 
+# TODO: adjust for partitions with dynamic boundaries (take list as input)
 def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse,
                   d_coarse, M, threshold=0):
     N = len(a_fine)
@@ -239,18 +239,7 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
     return x
 
 
-def plot_coarse_system(mtx_coarse, title='Coarse system'):
-    vmin=np.min(mtx_coarse)
-    vmax=np.max(mtx_coarse)
-    vcenter = 0 if vmin < 0 else (vmin+vmax)/2
-    norm_coarse = colors.TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
-
-    plt.matshow(mtx_coarse, cmap='bwr', norm=norm_coarse)
-    plt.title(title)
-    plt.colorbar()
-    plt.show()
-
-
+# TODO: adjust for partitions with dynamic boundaries (take list as input)
 def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, M, threshold=0):
     N = len(a_fine)
     num_partitions = N / M
@@ -305,56 +294,21 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, halo_n=1, le
     print("Fine system, condition: {:e}".format(mtx_cond))
 
     # -------------------------------------------------------------------------
-    # Compute (maximum) condition of partitions
+    # Compute (maximum) condition for partitions of a fixed size
     conds = []
-    if N_fine // M == int(N_fine / M):
-        n_partitions = (N_fine // M)
-    else:
-        n_partitions = (N_fine // M) + 1
+    static_partition = generate_static_partition(N_fine, M, halo_n)
+    n_partitions = len(static_partition)
 
-    # Compute conditions for partitions of size M
-    # TODO: make this work with dynamic bounds, not just static ones
-    #       take an array of begin/start indices per partition?
-    for i in range(0, N_fine//M):
-        if i > 0:
-            # subtract 1 for nodes A_IP (upper halo)
-            i_begin = i*M - halo_n
-        else:
-            i_begin = i*M
+    for part_i, idx in enumerate(static_partition):
+        i_begin, i_end = idx
         
-        if i == n_partitions-1:
-            # we are in the last partition, of size M
-            i_end = (i+1)*M # N_fine
-        else:
-            # we are in an inner partition, of size M
-            i_end = (i+1)*M + halo_n
-
-        # i_begin = i*M
-        # i_end = (i+1)*M
-
         mtx_part = mtx_fine[i_begin:i_end, i_begin:i_end]
         mtx_part_cond = np.linalg.cond(mtx_part)
         mtx_part_shape = np.shape(mtx_part)
         conds.append(mtx_part_cond)
-
+        
         print("Partition {} (A_PP, size {}x{}), condition {:e}".format(
-            i, mtx_part_shape[0], mtx_part_shape[1], mtx_part_cond))
-
-    # Compute condition for remaining partition of size N % M
-    if N_fine % M > 0:
-        i = n_partitions
-        # subtract 1 for nodes A_IP (upper halo)
-        i_begin = i*M - halo_n
-        # i_begin = i*M
-        i_end = N_fine
-
-        mtx_part = mtx_fine[i_begin:i_end, i_begin:i_end]
-        mtx_part_cond = np.linalg.cond(mtx_part)
-        mtx_part_shape = np.shape(mtx_part)
-        conds.append(mtx_part_cond)
-
-        print("Partition {} (A_PP, size {}x{}), condition {:e}".format(
-            i, mtx_part_shape[0], mtx_part_shape[1], mtx_part_cond))
+            part_i, mtx_part_shape[0], mtx_part_shape[1], mtx_part_cond))
 
     # Compute partition index of maximum condition
     part_max_cond_i = np.argmax(conds)
@@ -363,96 +317,56 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, halo_n=1, le
 
     # Extend boundaries of partition upwards
     # TODO: also extend boundaries of upper neighbor
-    # TODO: mark partition (and neighbors?) as "done" when minimum condition is found, proceed to next
-    # TODO: include halo in condition calculations?
-    # TODO: move this to separate function
-    # TODO: Generalize for both upshift and downshift
+    # TODO: mark partition (and upper neighbor) as "done" when minimum condition is found, proceed to next
+    # TODO: include halo in condition calculations? (can be done in index set partitioning -> implicit)
     if part_max_cond_i > 0:
-        conds_upshift = []
-        conds_upshift_neigh = []
+        new_part = tridiag_cond_upshift(mtx_fine, static_partition, part_max_cond_i)
+        print(static_partition)
+        print(new_part)
 
-        for k_up in range(0, 6):
-            # boundaries of block
-            i_new_begin = part_max_cond_i*M - k_up
-            i_new_end = (part_max_cond_i+1)*M
-
-            mtx_new = mtx_fine[i_new_begin:i_new_end, i_new_begin:i_new_end]
-            mtx_new_cond = np.linalg.cond(mtx_new)
-            mtx_new_shape = np.shape(mtx_new)
-            conds_upshift.append(mtx_new_cond)
-
-            print("Partition {} (A_PP [upshift {}], size {}x{}), condition {:e}".format(
-                part_max_cond_i, k_up, mtx_new_shape[0], mtx_new_shape[1], mtx_new_cond))
-
-            # boundaries of upper neighbor
-            i_neigh_begin = max(0, (part_max_cond_i-1)*M)
-            i_neigh_end = i_new_begin - 1
-
-            mtx_neigh = mtx_fine[i_neigh_begin:i_neigh_end, i_neigh_begin:i_neigh_end]
-            mtx_neigh_cond = np.linalg.cond(mtx_neigh)
-            mtx_neigh_shape = np.shape(mtx_neigh)
-            conds_upshift_neigh.append(mtx_neigh_cond)
-            
-            print("Partition {} (A_PP [upshift {}, neigh], size {}x{}), condition {:e}".format(
-                part_max_cond_i-1, k_up, mtx_neigh_shape[0], mtx_neigh_shape[1], mtx_neigh_cond))
+    # XXX: Possible combinations of downshift and upshift for a single partition
+    # 1. compute upshift, compute downshift, take minimum
+    # 2. step-by-step increase (up+1, down+1, up+2, down+2, ...)
+    # 3. all possible combinations (up+1 x [down+{0,1,2,...}], up+2 x [down+{0,1,2,...}])
+    # 4. simple case: only compute upwards shifts
     
-            # Plot partitions
-            plot_coarse_system(mtx_new, "partition, k_up = {}, cond = {:e}".format(
-                k_up, mtx_new_cond))
-            # plot_coarse_system(mtx_neigh, "partition, k_up = {} [neigh], cond = {:e}".format(
-            #     k_up, mtx_neigh_cond))
-
-        conds_upshift_min_k = np.argmin(conds_upshift)
-        print("argmin k_up = {}".format(conds_upshift_min_k))
-        
-        conds_upshift_neigh_min_k = np.argmin(conds_upshift_neigh)
-        print("argmin k_up = {} [neigh]".format(conds_upshift_neigh_min_k))
-        
-        # Heuristic: if minimal neighbor has condition of a higher magnitude 
-        # than the corresponding neighbor for the minimal partition, swap and check
-        # XXX: this does not cover differences within the same order of magnitude
-        # In some cases, an improvement in condition necessarily leads to a worse condition
-        # of the neighbor (e.g. matrix 14), and we have to choose which to improve.
-        conds_upshift_final_min_k = conds_upshift_min_k
-        if conds_upshift[conds_upshift_neigh_min_k] < 10*conds_upshift[conds_upshift_min_k]:
-            if conds_upshift_neigh[conds_upshift_min_k] < 10*conds_upshift_neigh[conds_upshift_neigh_min_k]:
-                conds_upshift_final_min_k = conds_upshift_neigh_min_k
-
-        print("argmin k_up = {} [heuristic]".format(conds_upshift_final_min_k))
-
+    # Possible orderings for adjusting b oundaries
+    # a. Top to bottom, upwards shifts only: 
+    #    [0, 1, 2, 3, ...] -> upshift(0,*1); upshift(2,*3); ...
+    # b. Top to bottom, combine upwards and downwards shifts:
+    # c. Take partition with maximum condition (starting from static partitioning),
+    #    shift boundaries for it and upper neighbor
+    # d. As c., but also shift boundaries for lower neighbor
 
     # Extend boundaries of partition downwards
-    # TODO: also extend boundaries of lower neighbor
-    # TODO: mark partition (and neighbors?) as "done" when minimum condition is found
-    # TODO: include halo in condition calculations?
-    # TODO: move this to separate function
-    if part_max_cond_i < n_partitions:
-        conds_downshift = []
-        conds_downshift_neigh = []
+    # if part_max_cond_i < n_partitions:
+    #     conds_downshift = []
+    #     conds_downshift_neigh = []
         
-        for k_down in range(0, 6):
-            # boundaries of block
-            i_new_begin = part_max_cond_i*M
-            i_new_end = (part_max_cond_i+1)*M + k_down
+    #     for k_down in range(0, 6):
+    #         # boundaries of block
+    #         i_new_begin = part_max_cond_i*M
+    #         i_new_end = (part_max_cond_i+1)*M + k_down
 
-            mtx_new = mtx_fine[i_new_begin:i_new_end, i_new_begin:i_new_end]
-            mtx_new_cond = np.linalg.cond(mtx_new)
-            conds_downshift.append(mtx_new_cond)
-            mtx_new_shape = np.shape(mtx_new)
+    #         mtx_new = mtx_fine[i_new_begin:i_new_end, i_new_begin:i_new_end]
+    #         mtx_new_cond = np.linalg.cond(mtx_new)
+    #         conds_downshift.append(mtx_new_cond)
+    #         mtx_new_shape = np.shape(mtx_new)
     
-            print("Partition {} (A_PP [downshift {}], size {}x{}), condition {:e}".format(
-                part_max_cond_i, k_down, mtx_new_shape[0], mtx_new_shape[1], mtx_new_cond))
+    #         print("Partition {} (A_PP [downshift {}], size {}x{}), condition {:e}".format(
+    #             part_max_cond_i, k_down, mtx_new_shape[0], mtx_new_shape[1], mtx_new_cond))
     
-            # boundaries of lower neighbor
-            i_neigh_begin = i_new_end + 1
-            i_neigh_end = min(N_fine, (part_max_cond_i+2)*M)
+    #         # boundaries of lower neighbor
+    #         # Note: differs between upshift and downshift
+    #         i_neigh_begin = i_new_end + 1
+    #         i_neigh_end = min(N_fine, (part_max_cond_i+2)*M)
 
-            # Plot partitions
-            plot_coarse_system(mtx_new, "partition, k_down = {}, cond = {:e}".format(
-                k_down, mtx_new_cond))
+    #         # Plot partitions
+    #         plot_coarse_system(mtx_new, "partition, k_down = {}, cond = {:e}".format(
+    #             k_down, mtx_new_cond))
         
-        conds_downshift_min_k = np.argmin(conds_downshift)
-        print("argmin k_down = {}".format(conds_downshift_min_k))
+    #     conds_downshift_min_k = np.argmin(conds_downshift)
+    #     print("argmin k_down = {}".format(conds_downshift_min_k))
 
     # -------------------------------------------------------------------------
     # Reduce to coarse system
