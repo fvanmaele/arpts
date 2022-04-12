@@ -125,25 +125,29 @@ def eliminate_band(a, b, c, d, threshold=0):
 
 # TODO: adjust for partitions with dynamic boundaries (take list as input)
 def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse,
-                  d_coarse, M, threshold=0):
-    N = len(a_fine)
-    partition_start = 0
+                  d_coarse, partition, threshold=0):
+    # num_partitions = len(partition)
+    # N = len(a_fine)
+    # partition_start = 0
 
-    for partition_id, partition_offset in enumerate(range(0, N, M)):
-        partition_end = min(partition_offset +M, N)
-        #partition_size = partition_end - partition_start;
+    for partition_id, partition_bounds in enumerate(partition):
+    # for partition_id, partition_offset in enumerate(range(0, N, M)):
+        partition_begin = partition_bounds[0]
+        partition_end = partition_bounds[1]
+        # partition_end = min(partition_offset +M, N)
+        # partition_size = partition_end - partition_start;
         
         a_coarse_lower, b_coarse_lower, c_coarse_lower, d_coarse_lower = eliminate_band(
-            a_fine[partition_offset:partition_end],
-            b_fine[partition_offset:partition_end],
-            c_fine[partition_offset:partition_end],
-            d_fine[partition_offset:partition_end],
+            a_fine[partition_begin:partition_end],
+            b_fine[partition_begin:partition_end],
+            c_fine[partition_begin:partition_end],
+            d_fine[partition_begin:partition_end],
             threshold)
         c_coarse_upper, b_coarse_upper, a_coarse_upper, d_coarse_upper = eliminate_band(
-            list(reversed(c_fine[partition_offset:partition_end])),
-            list(reversed(b_fine[partition_offset:partition_end])),
-            list(reversed(a_fine[partition_offset:partition_end])),
-            list(reversed(d_fine[partition_offset:partition_end])),
+            list(reversed(c_fine[partition_begin:partition_end])),
+            list(reversed(b_fine[partition_begin:partition_end])),
+            list(reversed(a_fine[partition_begin:partition_end])),
+            list(reversed(d_fine[partition_begin:partition_end])),
             threshold)
 
         a_coarse[2 * partition_id] = a_coarse_upper
@@ -239,14 +243,16 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
     return x
 
 
-# TODO: adjust for partitions with dynamic boundaries (take list as input)
-def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, M, threshold=0):
+def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, threshold=0):
+    num_partitions = len(partition)
     N = len(a_fine)
-    num_partitions = N / M
     x_fine = [None] * N
 
-    for partition_id, partition_offset in enumerate(range(0, N, M)):
-        partition_end = min(partition_offset+M, N)
+    for partition_id, partition_bounds in enumerate(partition):
+    # for partition_id, partition_offset in enumerate(range(0, N, M)):
+        partition_begin = partition_bounds[0]
+        partition_end = partition_bounds[1]
+        # partition_end = min(partition_offset+M, N)
 
         if partition_id > 0:
             x1_prev_partition = x_coarse[partition_id * 2 - 1]
@@ -262,13 +268,13 @@ def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, M, threshold=0):
         x1 = x_coarse[partition_id * 2 + 1]
 
         x_partition = eliminate_band_with_solution(
-            list(a_fine[partition_offset:partition_end]),
-            list(b_fine[partition_offset:partition_end]),
-            list(c_fine[partition_offset:partition_end]),
-            list(d_fine[partition_offset:partition_end]),
+            list(a_fine[partition_begin:partition_end]),
+            list(b_fine[partition_begin:partition_end]),
+            list(c_fine[partition_begin:partition_end]),
+            list(d_fine[partition_begin:partition_end]),
             x1_prev_partition, x0, x1, x0_next_partition, threshold)
 
-        x_fine[partition_offset:partition_end] = x_partition
+        x_fine[partition_begin:partition_end] = x_partition
 
     return x_fine
 
@@ -320,9 +326,9 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, halo_n=1, le
     # TODO: mark partition (and upper neighbor) as "done" when minimum condition is found, proceed to next
     # TODO: include halo in condition calculations? (can be done in index set partitioning -> implicit)
     if part_max_cond_i > 0:
-        new_part = tridiag_cond_upshift(mtx_fine, static_partition, part_max_cond_i)
+        dynamic_partition = tridiag_cond_upshift(mtx_fine, static_partition, part_max_cond_i)
         print(static_partition)
-        print(new_part)
+        print(dynamic_partition)
 
     # XXX: Possible combinations of downshift and upshift for a single partition
     # 1. compute upshift, compute downshift, take minimum
@@ -376,7 +382,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, halo_n=1, le
     d_coarse = np.zeros(N_coarse)
 
     rptapp_reduce(a_fine, b_fine, c_fine, d_fine,
-                  a_coarse, b_coarse, c_coarse, d_coarse, M, threshold)
+                  a_coarse, b_coarse, c_coarse, d_coarse, static_partition, threshold)
     mtx_coarse = bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
 
     # Compute condition of coarse system
@@ -396,7 +402,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, halo_n=1, le
 
     # Substitute into fine system
     x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, 
-                                      M, threshold)
+                                      static_partition, threshold)
     return x_fine_rptapp
 
         
