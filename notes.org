@@ -51,7 +51,9 @@ Spike zu berechnen (Ründungsfehler).
 *** Parallel cyclic reduction
 
 * Preconditioning
-We want to have a (stable) method where the condition of the coarse system is not (significantly) larger than the condition of the fine system.
+We want to have a (stable) method where the condition of the coarse
+system is not (significantly) larger than the condition of the fine
+system.
 
 ** Inner preconditioning
 :PROPERTIES:

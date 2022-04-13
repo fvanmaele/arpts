@@ -5,8 +5,9 @@
 import numpy as np
 from math import ceil
 import sys
+import warnings
 
-from condition import generate_static_partition, tridiag_cond_upshift
+from condition import generate_static_partition, tridiag_cond_shift
 from condition import plot_coarse_system, tridiag_cond_partition
 
 def apply_threshold(x, y, eps):
@@ -343,6 +344,10 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
     print(static_partition)
     dynamic_partition = static_partition[:]
 
+    # TODO: maximum amount of row/column shifts, make this a parameter
+    k_max_up = 5
+    k_max_down = 0 # TODO: test downshifts
+
     # XXX: Possible combinations of downshift and upshift for a single partition
     # 1. compute upshift, compute downshift, take minimum
     # 2. step-by-step increase (up+1, down+1, up+2, down+2, ...)
@@ -357,15 +362,16 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
     #    shift boundaries for it and upper neighbor
     # d. As c., but also shift boundaries for lower neighbor
 
-    # Compute new bounds for partitions, starting with partition of maximum condition
+    # Compute new bounds for partitions, starting with partition of maximum condition.
+    # Includes upshifts and downshifts, so partitions are processed in triples.
     # TODO: amount of partitions can be even and odd
-    # TODO: abort when any step leads to a condition higher than conds_max?
     # (observation that there tend to be outliers of a very high condition)
     # XXX: Recompute maxima after adjusting partitions?
     for step in range(0, n_partitions):
         conds_argmax_step = conds_decreasing[step] # partition number
         
-        # Do not process a partition and its neighbor twice (*)
+        # Do not process a partition and its neighbors twice (*)
+        # TODO: adjust boundaries depending on k_max_up / k_max_down and partition number
         if partition_mask[conds_argmax_step] or partition_mask[conds_argmax_step-1] is True:
             continue
 
@@ -373,27 +379,41 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
             step, conds_argmax_step, conds[conds_argmax_step]))
 
         # Extend boundaries of partition upwards
-        # TODO: also extend boundaries of upper neighbor
         # Note: different elements of dynamic_partition are processed in each step (by (*))
-        if conds_argmax_step > 0:
-            dynamic_partition, cond_new, cond_neigh_new = tridiag_cond_upshift(
-                mtx_fine, dynamic_partition, conds_argmax_step, n_halo)
+        dynamic_partition, new_cond, new_cond_upper, new_cond_lower = tridiag_cond_shift(
+            mtx_fine, dynamic_partition, conds_argmax_step, n_halo, k_max_up, k_max_down)
 
-            # Mark partition and upper neighbor as processed
-            partition_mask[conds_argmax_step] = True # partition
+        # Mark partition and neighbors as processed
+        partition_mask[conds_argmax_step] = True # partition    
+        print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step, new_cond))
+   
+        # XXX: instead of aborting the algorithm when the (neighboring) partition
+        # has a higher condition, mark it as False and process it again 
+        # (in the direction towards partitions which were not improved?)
+        if conds[conds_argmax_step] < new_cond:
+            warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
+                conds_argmax_step), RuntimeWarning)
+            break
+
+        if new_cond_upper is not None:
             partition_mask[conds_argmax_step-1] = True # upper neighbor
-
-            print("Partition {} (A_PP, adjusted) {:e}".format(
-                conds_argmax_step, cond_new))
-            print("Partition {} (A_PP, adjusted) {:e}".format(
-                conds_argmax_step-1, cond_neigh_new))
+            print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step-1, new_cond_upper))
             
-            if conds[conds_argmax_step] < cond_new or conds[conds_argmax_step] < cond_neigh_new:
-                raise Exception('repartitioning resulted in higher condition')
-        else:
-            # Skip to next entry if partition id = 0
-            continue
+            if conds[conds_argmax_step] < new_cond_upper:
+                warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
+                    conds_argmax_step-1), RuntimeWarning)
+                break
 
+        if new_cond_lower is not None:
+            partition_mask[conds_argmax_step+1] = True # lower neighbor
+            print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step+1, new_cond_lower))
+
+            if conds[conds_argmax_step] < new_cond_lower:
+                warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
+                    conds_argmax_step+1), RuntimeWarning)      
+                break
+        
+        print(partition_mask)
         print(dynamic_partition)
 
     # -------------------------------------------------------------------------
