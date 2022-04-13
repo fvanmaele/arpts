@@ -303,6 +303,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
 
     # -------------------------------------------------------------------------
     # Compute (maximum) condition for partitions of a fixed size
+    # TODO: move generation of dynamic partition to a function
 
     conds = []
     static_partition = generate_static_partition(N_fine, M)
@@ -346,7 +347,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
 
     # TODO: maximum amount of row/column shifts, make this a parameter
     k_max_up = 5
-    k_max_down = 0 # TODO: test downshifts
+    k_max_down = 0
 
     # XXX: Possible combinations of downshift and upshift for a single partition
     # 1. compute upshift, compute downshift, take minimum
@@ -364,21 +365,33 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
 
     # Compute new bounds for partitions, starting with partition of maximum condition.
     # Includes upshifts and downshifts, so partitions are processed in triples.
-    # TODO: amount of partitions can be even and odd
     # (observation that there tend to be outliers of a very high condition)
     # XXX: Recompute maxima after adjusting partitions?
-    for step in range(0, n_partitions):
+    for step in range(0, n_partitions-1):
         conds_argmax_step = conds_decreasing[step] # partition number
-        
-        # Do not process a partition and its neighbors twice (*)
-        # TODO: adjust boundaries depending on k_max_up / k_max_down and partition number
-        if partition_mask[conds_argmax_step] or partition_mask[conds_argmax_step-1] is True:
+
+        # Only process a partition and its neighbors once (*)
+        # Adjust mask depending on k_max_up / k_max_down and partition number
+        if step > 0 and step < n_partitions-1:
+            if k_max_up > 0 and k_max_down > 0:
+                mask_range = slice(conds_argmax_step-1, conds_argmax_step+2)
+            elif k_max_up > 0:
+                mask_range = slice(conds_argmax_step-1, conds_argmax_step+1)
+            elif k_max_down > 0:
+                mask_range = slice(conds_argmax_step, conds_argmax_step+2)               
+        elif step == n_partitions-1:
+            if k_max_up > 0:
+                mask_range = slice(conds_argmax_step-1, conds_argmax_step+1)
+        else:
+            mask_range = slice(0, 0)
+
+        if any(partition_mask[mask_range]):
             continue
 
         print("Maximum condition (step = {}): Partition {} (A_PP) {:e}".format(
             step, conds_argmax_step, conds[conds_argmax_step]))
 
-        # Extend boundaries of partition upwards
+        # Extend boundaries of partition upwards and downwards
         # Note: different elements of dynamic_partition are processed in each step (by (*))
         dynamic_partition, new_cond, new_cond_upper, new_cond_lower = tridiag_cond_shift(
             mtx_fine, dynamic_partition, conds_argmax_step, n_halo, k_max_up, k_max_down)
@@ -386,7 +399,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
         # Mark partition and neighbors as processed
         partition_mask[conds_argmax_step] = True # partition    
         print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step, new_cond))
-   
+
         # XXX: instead of aborting the algorithm when the (neighboring) partition
         # has a higher condition, mark it as False and process it again 
         # (in the direction towards partitions which were not improved?)
@@ -395,6 +408,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
                 conds_argmax_step), RuntimeWarning)
             break
 
+        # XXX: implicit verification of k_max_* > 0
         if new_cond_upper is not None:
             partition_mask[conds_argmax_step-1] = True # upper neighbor
             print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step-1, new_cond_upper))
@@ -478,7 +492,7 @@ a_fine, b_fine, c_fine = numpy_matrix_to_bands(mtx)
 N_fine = mtx.shape[0]
 #Ms = [4, 8, 16, 32, 64]
 #Ms = range(16, 33)
-Ms = [33]
+Ms = [32]
 
 for M in Ms:
     # N_coarse = (N_fine // M) * 2

@@ -169,6 +169,7 @@ def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=5
     # Note: by including 0, the condition for the original bounds is included.
     # This way the original partition is included when computing the minimum
     # (in case shifting boundaries results in a higher condition).
+    # TODO: add an option to first do upwards shifts, then downwards shifts
     for k_up in range(0, k_max_up+1):
         for k_down in range(0, k_max_down+1):
             mtx_cond, mtx = tridiag_cond_partition(
