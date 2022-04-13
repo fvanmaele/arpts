@@ -169,7 +169,6 @@ def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=5
     # Note: by including 0, the condition for the original bounds is included.
     # This way the original partition is included when computing the minimum
     # (in case shifting boundaries results in a higher condition).
-    # TODO: add an option to first do upwards shifts, then downwards shifts
     for k_up in range(0, k_max_up+1):
         for k_down in range(0, k_max_down+1):
             mtx_cond, mtx = tridiag_cond_partition(
@@ -178,11 +177,27 @@ def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=5
             
             print("Partition {} (A_PP [upshift {}, downshift {}], size {}x{}), condition {:e}".format(
                 part_id, k_up, k_down, np.shape(mtx)[0], np.shape(mtx)[1], mtx_cond))
-            
+
             # Visualize partition with adjusted boundaries
             # plot_coarse_system(mtx, "partition, k_up = {}, k_down = {}, cond = {:e}".format(
             #     k_up, k_down, mtx_cond))
-    
+
+    # for k_up in range(0, k_max_up+1):
+    #     mtx_cond, mtx = tridiag_cond_partition(
+    #         mtx_fine, i_begin - k_up, i_end, n_halo)
+    #     conds_shift[(k_up, 0)] = mtx_cond
+        
+    #     print("Partition {} (A_PP [upshift {}, downshift {}], size {}x{}), condition {:e}".format(
+    #         part_id, k_up, 0, np.shape(mtx)[0], np.shape(mtx)[1], mtx_cond))
+        
+    # for k_down in range(0, k_max_down+1):
+    #     mtx_cond, mtx = tridiag_cond_partition(
+    #         mtx_fine, i_begin, i_end + k_down, n_halo)
+    #     conds_shift[(0, k_down)] = mtx_cond
+        
+    #     print("Partition {} (A_PP [upshift {}, downshift {}], size {}x{}), condition {:e}".format(
+    #         part_id, 0, k_down, np.shape(mtx)[0], np.shape(mtx)[1], mtx_cond))
+        
     # Compute minimal condition number for partition and its neighbors
     conds_shift_argmin = min(conds_shift, key=conds_shift.get)
     print("argmin k_up = {}, k_down = {}".format(
@@ -244,7 +259,7 @@ def main():
     n = 512
     m_even = 32
     part_m_even = generate_static_partition(n, m_even)
-    #print(part_m_even)
+    print(part_m_even)
     
     # Test if intervals are half-open
     for idx in range(1, len(part_m_even)):
@@ -256,7 +271,7 @@ def main():
     print("testing static partition, n = 512, m = 33")
     m_odd = 33
     part_m_odd = generate_static_partition(n, m_odd)
-    #print(part_m_odd)
+    print(part_m_odd)
     
     for idx in range(1, len(part_m_even)):
         assert(part_m_even[idx][0] == part_m_even[idx-1][1])

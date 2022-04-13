@@ -346,8 +346,8 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
     dynamic_partition = static_partition[:]
 
     # TODO: maximum amount of row/column shifts, make this a parameter
-    k_max_up = 5
-    k_max_down = 0
+    k_max_up = 0
+    k_max_down = 1
 
     # XXX: Possible combinations of downshift and upshift for a single partition
     # 1. compute upshift, compute downshift, take minimum
@@ -367,7 +367,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
     # Includes upshifts and downshifts, so partitions are processed in triples.
     # (observation that there tend to be outliers of a very high condition)
     # XXX: Recompute maxima after adjusting partitions?
-    for step in range(0, n_partitions-1):
+    for step in range(0, n_partitions):
         conds_argmax_step = conds_decreasing[step] # partition number
 
         # Only process a partition and its neighbors once (*)
@@ -385,7 +385,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
         else:
             mask_range = slice(0, 0)
 
-        if any(partition_mask[mask_range]):
+        if all(partition_mask[mask_range]):
             continue
 
         print("Maximum condition (step = {}): Partition {} (A_PP) {:e}".format(
@@ -406,7 +406,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
         if conds[conds_argmax_step] < new_cond:
             warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
                 conds_argmax_step), RuntimeWarning)
-            break
+            #break
 
         # XXX: implicit verification of k_max_* > 0
         if new_cond_upper is not None:
@@ -416,7 +416,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
             if conds[conds_argmax_step] < new_cond_upper:
                 warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
                     conds_argmax_step-1), RuntimeWarning)
-                break
+                #break
 
         if new_cond_lower is not None:
             partition_mask[conds_argmax_step+1] = True # lower neighbor
@@ -425,7 +425,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
             if conds[conds_argmax_step] < new_cond_lower:
                 warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
                     conds_argmax_step+1), RuntimeWarning)      
-                break
+                #break
         
         print(partition_mask)
         print(dynamic_partition)
@@ -451,6 +451,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
     print("Coarse system (M = {}), condition: {:e}".format(M, mtx_coarse_cond))
 
     # Plot coarse system
+    # TODO: add condition number to title
     plot_coarse_system(mtx_coarse)
 
     # If system size below threshold, solve directly
@@ -492,7 +493,7 @@ a_fine, b_fine, c_fine = numpy_matrix_to_bands(mtx)
 N_fine = mtx.shape[0]
 #Ms = [4, 8, 16, 32, 64]
 #Ms = range(16, 33)
-Ms = [32]
+Ms = [33]
 
 for M in Ms:
     # N_coarse = (N_fine // M) * 2
