@@ -5,10 +5,7 @@
 import numpy as np
 from math import ceil
 import sys
-import warnings
-
-from condition import generate_static_partition, tridiag_cond_shift
-from condition import plot_coarse_system, tridiag_cond_partition
+import condition
 
 def apply_threshold(x, y, eps):
     xt, yt = [0, 0]
@@ -284,7 +281,8 @@ def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, thres
 # partition of size N mod M (more options to set partition boundaries,
 # for adaptive partitioning)
 # "it must be true that `num_partitions_per_block` <= block dimension"
-def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, level=0):
+def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, 
+           k_max_up=0, k_max_down=0, threshold=0, n_halo=1, level=0):
     N_fine = len(a_fine)
     N_coarse = (ceil(N_fine / M)) * 2
     #assert(N_fine == len(b_fine) == len(c_fine) == len(d_fine))
@@ -303,132 +301,10 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
 
     # -------------------------------------------------------------------------
     # Compute (maximum) condition for partitions of a fixed size
-    # TODO: move generation of dynamic partition to a function
-
-    conds = []
-    static_partition = generate_static_partition(N_fine, M)
-    n_partitions = len(static_partition)
-    
-    # Take halo into account when computing condition
-    # if i > 0:
-    #     # subtract 1 for nodes A_IP (upper halo), i_begin == 0
-    #     i_begin = i*M - halo_n
-    # else:
-    #     i_begin = i*M
-    
-    # if i == n_partitions-1:
-    #     # we are in the last partition, of size M, i_end == N_fine
-    #     i_end = (i+1)*M
-    # else:
-    #     # we are in an inner partition, of size M
-    #     i_end = (i+1)*M + halo_n
-
-    # Compute conditions for partitions in ascending order
-    for part_i, idx in enumerate(static_partition):
-        i_begin, i_end = idx
-        mtx_part_cond, mtx_part = tridiag_cond_partition(mtx_fine, i_begin, i_end, n_halo)
-        conds.append(mtx_part_cond)
-
-        print("Partition {} (A_PP, size {}x{}), condition {:e}".format(
-            part_i, np.shape(mtx_part)[0], np.shape(mtx_part)[1], mtx_part_cond))
-
-    # Create mask for partition (True if boundaries were adjusted)
-    # XXX: When shifting partition boundaries, the number of partitions remains fixed.
-    # Allow to "merge" one partition into the other, reducing the number of partitions?
-    partition_mask = [None] * n_partitions
-    conds_decreasing = np.flip(np.argsort(conds)) # contains partition IDs with decreasing condition
-    conds_argmax = conds_decreasing[0]
-    
-    print("Maximum condition: Partition {} (A_PP) {:e}".format(
-        conds_argmax, conds[conds_argmax]))
-
-    print(static_partition)
-    dynamic_partition = static_partition[:]
-
-    # TODO: maximum amount of row/column shifts, make this a parameter
-    k_max_up = 0
-    k_max_down = 1
-
-    # XXX: Possible combinations of downshift and upshift for a single partition
-    # 1. compute upshift, compute downshift, take minimum
-    # 2. step-by-step increase (up+1, down+1, up+2, down+2, ...)
-    # 3. all possible combinations (up+1 x [down+{0,1,2,...}], up+2 x [down+{0,1,2,...}])
-    # 4. simple case: only compute upwards shifts
-    
-    # XXX: Possible orderings for adjusting boundaries
-    # a. Top to bottom, upwards shifts only: 
-    #    [0, 1, 2, 3, ...] -> upshift(0,*1); upshift(2,*3); ...
-    # b. Top to bottom, combine upwards and downwards shifts:
-    # c. Take partition with maximum condition (starting from static partitioning),
-    #    shift boundaries for it and upper neighbor
-    # d. As c., but also shift boundaries for lower neighbor
-
-    # Compute new bounds for partitions, starting with partition of maximum condition.
-    # Includes upshifts and downshifts, so partitions are processed in triples.
-    # (observation that there tend to be outliers of a very high condition)
-    # XXX: Recompute maxima after adjusting partitions?
-    for step in range(0, n_partitions):
-        conds_argmax_step = conds_decreasing[step] # partition number
-
-        # Only process a partition and its neighbors once (*)
-        # Adjust mask depending on k_max_up / k_max_down and partition number
-        if step > 0 and step < n_partitions-1:
-            if k_max_up > 0 and k_max_down > 0:
-                mask_range = slice(conds_argmax_step-1, conds_argmax_step+2)
-            elif k_max_up > 0:
-                mask_range = slice(conds_argmax_step-1, conds_argmax_step+1)
-            elif k_max_down > 0:
-                mask_range = slice(conds_argmax_step, conds_argmax_step+2)               
-        elif step == n_partitions-1:
-            if k_max_up > 0:
-                mask_range = slice(conds_argmax_step-1, conds_argmax_step+1)
-        else:
-            mask_range = slice(0, 0)
-
-        if all(partition_mask[mask_range]):
-            continue
-
-        print("Maximum condition (step = {}): Partition {} (A_PP) {:e}".format(
-            step, conds_argmax_step, conds[conds_argmax_step]))
-
-        # Extend boundaries of partition upwards and downwards
-        # Note: different elements of dynamic_partition are processed in each step (by (*))
-        dynamic_partition, new_cond, new_cond_upper, new_cond_lower = tridiag_cond_shift(
-            mtx_fine, dynamic_partition, conds_argmax_step, n_halo, k_max_up, k_max_down)
-
-        # Mark partition and neighbors as processed
-        partition_mask[conds_argmax_step] = True # partition    
-        print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step, new_cond))
-
-        # XXX: instead of aborting the algorithm when the (neighboring) partition
-        # has a higher condition, mark it as False and process it again 
-        # (in the direction towards partitions which were not improved?)
-        if conds[conds_argmax_step] < new_cond:
-            warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
-                conds_argmax_step), RuntimeWarning)
-            #break
-
-        # XXX: implicit verification of k_max_* > 0
-        if new_cond_upper is not None:
-            partition_mask[conds_argmax_step-1] = True # upper neighbor
-            print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step-1, new_cond_upper))
-            
-            if conds[conds_argmax_step] < new_cond_upper:
-                warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
-                    conds_argmax_step-1), RuntimeWarning)
-                #break
-
-        if new_cond_lower is not None:
-            partition_mask[conds_argmax_step+1] = True # lower neighbor
-            print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step+1, new_cond_lower))
-
-            if conds[conds_argmax_step] < new_cond_lower:
-                warnings.warn('repartitioning resulted in higher condition for partition {}'.format(
-                    conds_argmax_step+1), RuntimeWarning)      
-                #break
-        
-        print(partition_mask)
-        print(dynamic_partition)
+    static_partition = condition.generate_static_partition(N_fine, M)
+    # XXX: show warnings from this step at program end
+    dynamic_partition = condition.tridiag_dynamic_partition(
+        mtx_fine, static_partition, n_halo, k_max_up, k_max_down)
 
     # -------------------------------------------------------------------------
     # Reduce to coarse system
@@ -448,11 +324,12 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
 
     # Compute condition of coarse system
     mtx_coarse_cond = np.linalg.cond(mtx_coarse)
-    print("Coarse system (M = {}), condition: {:e}".format(M, mtx_coarse_cond))
+    print("\nCoarse system (M = {}, k_max_up = {}, k_max_down = {}), condition: {:e}".format(
+        M, k_max_up, k_max_down, mtx_coarse_cond))
 
     # Plot coarse system
     # TODO: add condition number to title
-    plot_coarse_system(mtx_coarse)
+    condition.plot_coarse_system(mtx_coarse)
 
     # If system size below threshold, solve directly
     # TODO: the case <= N_tilde always hold, add parameter
@@ -465,15 +342,15 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold=0, n_halo=1, le
     # TODO: pass newly computed M, N_tilde to recursive call (coarse system) 
     else:
         sys.exit('function not implemented')
-        x_coarse = rptapp(a_coarse, b_coarse, c_coarse, d_coarse,
-                          M, N_tilde, threshold, n_halo, level=level+1)    
+        x_coarse = rptapp(a_coarse, b_coarse, c_coarse, d_coarse, M, N_tilde, 
+                          k_max_up, k_max_down, threshold, n_halo, level=level+1)    
 
     # Substitute into fine system
     x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, 
                                       rptapp_partition, threshold)
     return x_fine_rptapp
 
-        
+
 # # lower diagonal
 # a_fine = np.random.rand(N_fine)
 # # main diagonal
@@ -493,7 +370,7 @@ a_fine, b_fine, c_fine = numpy_matrix_to_bands(mtx)
 N_fine = mtx.shape[0]
 #Ms = [4, 8, 16, 32, 64]
 #Ms = range(16, 33)
-Ms = [33]
+Ms = [32]
 
 for M in Ms:
     # N_coarse = (N_fine // M) * 2
@@ -516,9 +393,10 @@ for M in Ms:
     #N_tilde = 64
     N_tilde = (ceil(N_fine / M)) * 2
     #print("N_tilde: {}".format(N_tilde))
+    k_max_up = 0
+    k_max_down = 1
     n_halo = 1
-    threshold = 0
-    x_fine_rptapp = rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, threshold, n_halo)
+    x_fine_rptapp = rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, k_max_up, k_max_down, 0, n_halo)
 
     print("FRE = ", np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine))
     print("\n")
