@@ -5,7 +5,9 @@
 import numpy as np
 from math import ceil
 import sys
+
 import condition
+import matrix
 
 def apply_threshold(x, y, eps):
     xt, yt = [0, 0]
@@ -19,72 +21,11 @@ def apply_threshold(x, y, eps):
     return xt, yt
 
 
-def read_matrixmarket(filename):
-    with open(filename) as f:
-        s = f.read()
-        ss = s.split('\n')
-        l = ss[1].split()
-        num_rows = int(l[0])
-        num_cols = int(l[1])
-        arr = np.zeros((num_rows, num_cols))
-        
-        for l in ss[2:-1]:
-            i, j, x = list(map(float, l.split()))
-            arr[int(i) - 1][int(j) - 1] = x
-
-        return arr
-    
-
-def read_dense_matrixmarket(filename):
-    with open(filename) as f:
-        s = f.read()
-        ss = s.split('\n')
-        l = ss[1].split()
-        num_rows = int(l[0])
-        # TODO can only read a vector
-        num_cols = int(l[1])
-        arr = np.zeros(num_rows)
-        
-        for i,l in enumerate(ss[2:-1]):
-            x = float(l)
-            arr[i] = x
-
-        return arr
-
-
-def bands_to_numpy_matrix(a, b, c):
-    N = len(a)
-    mtx = np.zeros((N, N))
-    
-    for row_id in range(N):
-        mtx[row_id][row_id] = b[row_id]
-        if row_id > 0:
-            mtx[row_id][row_id - 1] = a[row_id]
-        if row_id < N - 1:
-            mtx[row_id][row_id + 1] = c[row_id]
-
-    return mtx
-
-
-def numpy_matrix_to_bands(mtx):
-    N = mtx.shape[0]
-    a = [0.0] * N
-    b = [0.0] * N
-    c = [0.0] * N
-    
-    for row_id in range(N):
-        b[row_id] = mtx[row_id][row_id]
-        if row_id > 0:
-            a[row_id] = mtx[row_id][row_id - 1]
-        if row_id < N - 1:
-            c[row_id] = mtx[row_id][row_id + 1]
-
-    return a, b, c
-
 # TODO: add visualization for elements below spike
 def eliminate_band(a, b, c, d, threshold=0):
-    #print("eliminate_band: threshold: {}".format(threshold))
     M = len(a)
+    assert(M > 1) # band should at least have one element
+
     # to save a, b, c, d, spike
     s_p = [0.0] * 5
     s_c = [0.0] * 5
@@ -165,6 +106,7 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
                                  x0_next_partition, threshold=0):
     #print("eliminate_band_with_solution: threshold: {}".format(threshold))
     M = len(a)
+    assert(M > 1) # band should at least have one element
 
     x = np.zeros(M)
     x[M - 1] = x1
@@ -280,56 +222,56 @@ def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, thres
 # TODO: cover the case where M does not divide N, and we have a
 # partition of size N mod M (more options to set partition boundaries,
 # for adaptive partitioning)
-# "it must be true that `num_partitions_per_block` <= block dimension"
-def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, 
+# XXX: "it must be true that `num_partitions_per_block` <= block dimension"
+def rptapp(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
            k_max_up=0, k_max_down=0, threshold=0, n_halo=1, level=0):
     N_fine = len(a_fine)
+    # XXX: in the general case this is 2*len(partition)
     N_coarse = (ceil(N_fine / M)) * 2
-    #assert(N_fine == len(b_fine) == len(c_fine) == len(d_fine))
-    #assert(N_coarse * M == N_fine * 2)
 
-    print("recursion level: {}".format(level))
-    print("dim. fine system: {}".format(N_fine))
-    print("dim. coarse system: {}".format(N_coarse))
-    print("partition size: {}".format(M))
-    print("halo size: {}".format(n_halo))
+#    print("recursion level: {}".format(level))
+#    print("dim. fine system: {}".format(N_fine))
+#    print("dim. coarse system: {}".format(N_coarse))
+#    print("partition size: {}".format(M))
+#    print("halo size: {}".format(n_halo))
 
     # Compute condition of fine system (only for numerical experiments)
-    mtx_fine = bands_to_numpy_matrix(a_fine, b_fine, c_fine)
+    mtx_fine = matrix.bands_to_numpy_matrix(a_fine, b_fine, c_fine)
     mtx_cond = np.linalg.cond(mtx_fine)
-    print("Fine system, condition: {:e}".format(mtx_cond))
+#    print("Fine system, condition: {:e}".format(mtx_cond))
 
-    # -------------------------------------------------------------------------
     # Compute (maximum) condition for partitions of a fixed size
     static_partition = condition.generate_static_partition(N_fine, M)
     # XXX: show warnings from this step at program end
-    dynamic_partition = condition.tridiag_dynamic_partition(
+    dyn_partition, mtx_cond_partmax, mtx_cond_partmax_dyn = condition.tridiag_dynamic_partition(
         mtx_fine, static_partition, n_halo, k_max_up, k_max_down)
+    assert(N_coarse == len(dyn_partition)*2)
 
-    # -------------------------------------------------------------------------
+    # Merge partitions with only a single element
+    # If multiple neighbors are available, choose based on minimal condition
+    dyn_partition, id_mask = condition.merge_partition(mtx_fine, dyn_partition, n_halo)
+    if not all(id_mask):
+        print('warning: changed partition size from {} to {}'.format(N_coarse / 2, len(dyn_partition)), file=sys.stderr)
+    N_coarse = len(dyn_partition)*2
+
     # Reduce to coarse system
     a_coarse = np.zeros(N_coarse)
     b_coarse = np.zeros(N_coarse)
     c_coarse = np.zeros(N_coarse)
     d_coarse = np.zeros(N_coarse)
-
-    # XXX: Do this in each repartitioning step, and plot the values
-    rptapp_partition = dynamic_partition # Change partition here for comparison purposes
     
     # TODO: document input/output parameters of rptapp_reduce()
-    rptapp_reduce(a_fine, b_fine, c_fine, d_fine,
-                  a_coarse, b_coarse, c_coarse, d_coarse, 
-                  rptapp_partition, threshold)
-    mtx_coarse = bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+    rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
+                  dyn_partition, threshold)
+    mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
 
     # Compute condition of coarse system
-    mtx_coarse_cond = np.linalg.cond(mtx_coarse)
-    print("\nCoarse system (M = {}, k_max_up = {}, k_max_down = {}), condition: {:e}".format(
-        M, k_max_up, k_max_down, mtx_coarse_cond))
+    mtx_cond_coarse = np.linalg.cond(mtx_coarse)
+#    print("\nCoarse system (M = {}, k_max_up = {}, k_max_down = {}), condition: {:e}".format(
+#        M, k_max_up, k_max_down, mtx_cond_coarse))
 
     # Plot coarse system
-    # TODO: add condition number to title
-    condition.plot_coarse_system(mtx_coarse)
+#    condition.plot_coarse_system(mtx_coarse, "Condition: {:e}".format(mtx_cond_coarse))
 
     # If system size below threshold, solve directly
     # TODO: the case <= N_tilde always hold, add parameter
@@ -339,65 +281,54 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde,
     # Note: each recursive call starts from a static partition, and computes
     # new boundaries based on condition of the partitions
     # TODO: set maximum level for adjusting partition boundaries?
-    # TODO: pass newly computed M, N_tilde to recursive call (coarse system) 
     else:
-        sys.exit('function not implemented')
-        x_coarse = rptapp(a_coarse, b_coarse, c_coarse, d_coarse, M, N_tilde, 
+        x_coarse = rptapp(a_coarse, b_coarse, c_coarse, d_coarse, N_tilde, M, 
                           k_max_up, k_max_down, threshold, n_halo, level=level+1)    
 
     # Substitute into fine system
     x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, 
-                                      rptapp_partition, threshold)
-    return x_fine_rptapp
+                                      dyn_partition, threshold)
+    # Return additional values for parameter study
+    return x_fine_rptapp, mtx_cond, mtx_cond_coarse, mtx_cond_partmax, mtx_cond_partmax_dyn
+  
 
-
-# # lower diagonal
-# a_fine = np.random.rand(N_fine)
-# # main diagonal
-# b_fine = np.random.rand(N_fine)
-# # upper diagonal
-# c_fine = np.random.rand(N_fine)
-
-#12.mtx  14.mtx  15.mtx  16.mtx  17.mtx  18.mtx  19.mtx  1.mtx  20.mtx  2.mtx  4.mtx  6.mtx 
-mtx_number = 14
-mtx_dim = 512
-fn = "../mtx/{}-{}.mtx".format(mtx_number, mtx_dim)
-mtx = read_matrixmarket(fn)
-a_fine, b_fine, c_fine = numpy_matrix_to_bands(mtx)
-
-# TODO: add command-line arguments (matrix ID/file/dimension, block size M,
-# recursion limit N_tilda, threshold)
-N_fine = mtx.shape[0]
-#Ms = [4, 8, 16, 32, 64]
-#Ms = range(16, 33)
-Ms = [32]
-
-for M in Ms:
-    # N_coarse = (N_fine // M) * 2
-    # assert(N_coarse * M == N_fine * 2)
-
-    # print("dim. fine system: {}".format(N_fine))
-    # print("dim. coarse system: {}".format(N_coarse))
-    # print("partition size: {}".format(M))
-
-    # solution
+def main():
+    #mtx_ids = range(1, 21)
+    mtx_id = int(sys.argv[1])
+    N_fine = int(sys.argv[2])
+    #n_halo = 1
+    n_halo = int(sys.argv[3])
+    unif_low = -1
+    unif_high = 1
+    Ms = range(16, 65)
+    k_sup = 6
+    # Solution
     np.random.seed(0)
     x_fine = np.random.normal(3, 1, N_fine)
-    #x_fine = read_dense_matrixmarket("../numerical-test-matrices/N-14-x.mtx")
-
-    #mtx = bands_to_numpy_matrix(a_fine, b_fine, c_fine)
-
-    # rhs
+    
+    print("ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn")
+    mtx = matrix.generate_matrix(mtx_id, N_fine, unif_low, unif_high)
+    a_fine, b_fine, c_fine = matrix.numpy_matrix_to_bands(mtx)
+    
+    # Right-hand side
     d_fine = np.matmul(mtx, x_fine)
 
-    #N_tilde = 64
-    N_tilde = (ceil(N_fine / M)) * 2
-    #print("N_tilde: {}".format(N_tilde))
-    k_max_up = 0
-    k_max_down = 1
-    n_halo = 1
-    x_fine_rptapp = rptapp(a_fine, b_fine, c_fine, d_fine, M, N_tilde, k_max_up, k_max_down, 0, n_halo)
+    # Take all combinations of partition size / k_max_up / k_max_down
+    for M in Ms:
+        #N_tilde = 64
+        N_tilde = (ceil(N_fine / M)) * 2
+    
+        for k_max_up in range(0, k_sup):
+            for k_max_down in range(0, k_sup):
+                try:
+                    x_fine_rptapp, cond, cond_coarse, cond_partmax, cond_partmax_dyn = rptapp(
+                            a_fine, b_fine, c_fine, d_fine, N_tilde, M, k_max_up, k_max_down, 0, n_halo)
+                    fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+                    print("{},{},{},{},{},{},{},{},{}".format(mtx_id, M, k_max_up, k_max_down, fre, cond, cond_coarse, cond_partmax, cond_partmax_dyn))
 
-    print("FRE = ", np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine))
-    print("\n")
-    #print("xfine_calculated:\n", x_fine_rptapp)
+                except np.linalg.LinAlgError:
+                    print("warning: Singular matrix detected", file=sys.stderr)
+                    print("{},{},{},{},{},{},{},{},{}".format(mtx_id, M, k_max_up, k_max_down, np.Inf, np.Inf, np.Inf, np.Inf, np.Inf))
+
+if __name__ == "__main__":
+    main()

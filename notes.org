@@ -25,7 +25,8 @@ zu erzeugen
 
 * Test matrices
 
-** TODO Python implementation
+** DONE Python implementation
+CLOSED: [2022-04-17 Sun 20:53]
 
 ** DONE Matlab implementation
 
@@ -48,7 +49,6 @@ Spike zu berechnen (Ründungsfehler).
 ** TODO Implementation in Python
 *** (Scaled) Pivoting
 *** Cyclic reduction
-*** Parallel cyclic reduction
 
 * Preconditioning
 We want to have a (stable) method where the condition of the coarse
