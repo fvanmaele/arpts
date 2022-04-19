@@ -251,7 +251,8 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     # If multiple neighbors are available, choose based on minimal condition
     dyn_partition, id_mask = condition.merge_partition(mtx_fine, dyn_partition, n_halo)
     if not all(id_mask):
-        print('warning: changed partition size from {} to {}'.format(N_coarse / 2, len(dyn_partition)), file=sys.stderr)
+        print('warning: changed partition size from {} to {}'.format(
+            N_coarse / 2, len(dyn_partition)), file=sys.stderr)
     N_coarse = len(dyn_partition)*2
 
     # Reduce to coarse system
@@ -324,11 +325,13 @@ def main():
                     x_fine_rptapp, cond, cond_coarse, cond_partmax, cond_partmax_dyn = rptapp(
                             a_fine, b_fine, c_fine, d_fine, N_tilde, M, k_max_up, k_max_down, 0, n_halo)
                     fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
-                    print("{},{},{},{},{},{},{},{},{}".format(mtx_id, M, k_max_up, k_max_down, fre, cond, cond_coarse, cond_partmax, cond_partmax_dyn))
+                    print("{},{},{},{},{},{},{},{},{}".format(
+                        mtx_id, M, k_max_up, k_max_down, fre, cond, cond_coarse, cond_partmax, cond_partmax_dyn))
 
                 except np.linalg.LinAlgError:
                     print("warning: Singular matrix detected", file=sys.stderr)
-                    print("{},{},{},{},{},{},{},{},{}".format(mtx_id, M, k_max_up, k_max_down, np.Inf, np.Inf, np.Inf, np.Inf, np.Inf))
+                    print("{},{},{},{},{},{},{},{},{}".format(
+                        mtx_id, M, k_max_up, k_max_down, np.Inf, np.Inf, np.Inf, np.Inf, np.Inf))
 
 if __name__ == "__main__":
     main()
