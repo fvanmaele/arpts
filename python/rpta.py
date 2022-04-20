@@ -219,10 +219,8 @@ def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, thres
     return x_fine
 
 
-# TODO: cover the case where M does not divide N, and we have a
-# partition of size N mod M (more options to set partition boundaries,
-# for adaptive partitioning)
 # XXX: "it must be true that `num_partitions_per_block` <= block dimension"
+# TODO: move condition logic to a separate function
 def rptapp(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
            k_max_up=0, k_max_down=0, threshold=0, n_halo=1, level=0):
     N_fine = len(a_fine)
@@ -293,7 +291,7 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     return x_fine_rptapp, mtx_cond, mtx_cond_coarse, mtx_cond_partmax, mtx_cond_partmax_dyn
   
 
-def main():
+def main__dynamic_rpta_by_condition():
     #mtx_ids = range(1, 21)
     mtx_id = int(sys.argv[1])
     N_fine = int(sys.argv[2])
@@ -334,4 +332,4 @@ def main():
                         mtx_id, M, k_max_up, k_max_down, np.Inf, np.Inf, np.Inf, np.Inf, np.Inf))
 
 if __name__ == "__main__":
-    main()
+    main__dynamic_rpta_by_condition()

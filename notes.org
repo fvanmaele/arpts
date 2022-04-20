@@ -3,7 +3,20 @@
 #+AUTHOR: Ferdinand Vanmaele
 #+TITLE: Tridiagonal Solvers (RPTS)
 
-* Kondition
+* Test matrices
+
+** DONE Python implementation
+CLOSED: [2022-04-17 Sun 20:53]
+
+** DONE Matlab implementation
+
+** TODO Compare condition/error with paper
+*** Potentielle Fehler
+- [ ] Matrix 10
+- [ ] Matrix 12
+- [ ] Matrix 13
+  
+* Kondition von einzelnen Blöcken
 
 ** DONE Grenzen dynamisch bestimmen
 CLOSED: [2022-04-20 Wed 01:12]
@@ -15,6 +28,106 @@ CLOSED: [2022-04-20 Wed 01:12]
    - Zwischenwerte beibehalten, Minimum wählen
 4. Gehe zu Schritt 1
 
+*** TODO Richtungen
+Zunächst bleiben die Partitionen an der gleichen Stelle, und die Grenzen werden
+nach oben bzw. nach unten verschoben. Man kann auch die Blöcke selbst
+verschieben, indem man die Grenzen in 4 Richtungen verschiebt (2x oben/unten)
+
+*** Heuristik
+Vergleiche Größenordnungen zwischen Partition mit minimaler Kondition, und
+Nachbarn mit minimaler Kondition (eine verschobene Grenze kann zu einer besseren
+Kondition der Partition führen, aber zu einer schlechteren Kondition der
+Nachbarn, siehe z.B. Matrix 14).
+#+begin_src python
+  conds_shift_argmin_k_up, conds_shift_argmin_k_down = conds_shift_argmin
+
+  # Verify upper neighbor (k_down fixed)
+  if k_max_up > 0:
+      if (conds_shift[(conds_shift_upper_argmin, conds_shift_argmin_k_down)]
+          < 10*conds_shift[(conds_shift_argmin_k_up, conds_shift_argmin_k_down)]):
+          if conds_shift_upper[conds_shift_argmin_k_up] < 10*conds_shift_upper[conds_shift_upper_argmin]:
+              conds_shift_argmin_k_up = conds_shift_upper_argmin
+
+  # Verify lower neighbor (k_up fixed)
+  if k_max_down > 0:
+      if (conds_shift[(conds_shift_argmin_k_up, conds_shift_lower_argmin)]
+          < 10*conds_shift[(conds_shift_argmin_k_up, conds_shift_argmin_k_down)]):
+          if conds_shift_lower[conds_shift_argmin_k_down] < 10*conds_shift_lower[conds_shift_lower_argmin]:
+              conds_shift_argmin_k_down = conds_shift_lower_argmin
+#+end_src
+
+Bemerkung: das obige Beispiel behandelt keine Unterschiede in der selben
+Größenordnung. Es kann dazu führen, dass die neue Partition ein Block hat, mit
+einer größeren maximalen Kondition.
+
+*** Zusammenführen von Partitionen
+Falls nach Verschieben der Grenzen ein Block nur eine minimale Größe hat
+(z.B. nur ein einzelnes Element), dann verschmelze diesen Block mit seinem
+Nachbarn (z.B. auf Basis der resultierenden Kondition).
+
+*** Hyperparameter
+Die maximale Verschiebung (nach oben oder nach unten) hat einen großen Einfluss
+auf den Vorwärtsfehler. Deshalb müssen nicht nur alle Partitionen innerhalb
+einer bestimmten Grenze getestet werden, sondern auch alle möglichen Grenzen.
+
+Die Wahl des "halo" (zusätzliche Zeilen und Spalten, welche in der Berechnung
+der Kondition eines Blocks einbegriffen werden) hat auch einen Einfluss, und die
+optimale Wahl ändert sich zwischen verschiedenen Matrizen.
+
+*** Maskierung
+Nachdem eine Kondition bearbeitet wurde, haben sich die Grenzen der Nachbarn
+auch verschoben. Wenn man den nächsten Block bearbeitet (z.B. in absteigender
+Reihenfolge, nach Größe der Kondition), kann man überprüfen welche Partitionen
+schon gesetzt (maskiert) wurden.
+
+Man kann z.B. nach Bearbeiten die Partition und dessen Nachbarn maskieren, und
+im nächsten Schritt nur dann vorgehen, wenn zumindest ein Nachbar (oder die
+Partition selbst) nicht maskiert ist. (Sequentielle Vorgehensweise)
+
+** Erkenntnisse
+*** Kein direkter Zusammenhang zwischen (max.) Kondition Blöcke und Vorwärtsfehler
+Man kann Beispiele angeben, wo die maximale Kondition (der Blöcke in der
+Partitionierung) i.A. keine Rückschlüsse auf die Kondition des groben Systems
+gibt.
+
+*Implikation:* "lokale" Optimierungen führen nicht unbedingt auf eine Verbesserung
+des (globalen) groben Systems.
+
+**** TODO Größe der Blöcke
+Offensichtlich ändert sich die Kondition eines Blockes auch mit seiner
+Dimension. Bei einer dynamisch gewählten Partition sind die Größen der einzelnen
+Blöcke nicht direkt ablesbar. [Wir betrachten die maximale Kondition]
+
+**** Beispiel (n_halo=0)
+| ID |  M | uM | dM |          fre |         cond |  cond_coarse | cond_partmax | cond_partmax_dyn |
+|----+----+----+----+--------------+--------------+--------------+--------------+------------------|
+| 14 | 52 |  2 |  0 | 3.691755e-07 | 9.225477e+12 | 9.400173e+10 | 3.834193e+06 |     3.834194e+06 |
+|    | 18 |  3 |  0 | 2.804492e-05 | 9.225477e+12 | 1.300021e+11 | 5.338071e+04 |         51786.70 |
+|----+----+----+----+--------------+--------------+--------------+--------------+------------------|
+|  9 | 58 |  5 |  4 | 1.824266e-06 | 1.005955e+15 | 1.819834e+13 |   24537.5569 |       18404.6968 |
+|    | 31 |  0 |  3 | 1.286627e-05 |              | 6.587196e+13 |    9228.4211 |         697.0932 |
+
+**** Beispiel (n_halo=1)
+| ID |  M | uM | dM |          fre |         cond |  cond_coarse | cond_partmax | cond_partmax_dyn |
+|----+----+----+----+--------------+--------------+--------------+--------------+------------------|
+| 14 | 49 |  0 |  1 | 3.974180e-03 | 9.225477e+12 | 1.571855e+12 | 1.229411e+14 |     1.013181e+10 |
+|    | 51 |  0 |  3 | 8.796944e-04 |              | 4.793745e+14 | 1.244562e+13 |     2.822609e+12 |
+|----+----+----+----+--------------+--------------+--------------+--------------+------------------|
+|  9 | 33 |  3 |  0 | 2.715874e-06 | 1.005955e+15 | 5.691341e+13 |    8160.0617 |        7700.3325 |
+|    | 24 |  3 |  0 | 1.148209e-05 |              | 1.272564e+14 |    1746.7571 |         896.0477 |
+
+**** TODO Beispiel (n_halo=2)
+| ID |  M | uM | dM |          fre |         cond |  cond_coarse | cond_partmax | cond_partmax_dyn |
+|----+----+----+----+--------------+--------------+--------------+--------------+------------------|
+| 14 | 22 |  0 |  2 | 5.625009e-06 | 9.225477e+12 | 7.750985e+10 | 3.814060e+05 |     3.394814e+05 |
+|    | 32 |  0 |  4 | 1.400741e-06 |              | 4.666799e+10 | 5.120724e+06 |    5.0305629e+06 |
+|----+----+----+----+--------------+--------------+--------------+--------------+------------------|
+|  9 | 21 |  5 |  3 | 7.746475e-05 | 1.005955e+15 | 9.255254e+14 |    5007.7773 |         373.1086 |
+|    | 23 |  4 |  0 | 1.603560e-07 |              | 4.593692e+14 |    1746.7571 |        2063.7513 |
+
+*** Blöcke können singular sein
+In diesem Fall scheitert das Verfahren.
+
 ** DONE Halo
 CLOSED: [2022-04-20 Wed 01:12]
 With a 1 row/column halo, not all elements of interface between
@@ -25,16 +138,17 @@ for 2 row/columns (how about 3?)
 Code um Plots für Konditionzahl (in Abhängigkeit der Partitionsgröße)
 zu erzeugen
 
-* Test matrices
+*** TODO ggplot2
+- Start barplot values at 0
+- Grid mit geteilter x-Achse (und dynamischer y-Achse)
+- Statische Partition (schwarz), teile auf in M=32 und M=argmin
+  - Erwähne optimales M auf x-Achse (sowie ggf. k_max_up, k_max_down)
 
-** DONE Python implementation
-CLOSED: [2022-04-17 Sun 20:53]
+* Kondition des Grobes System
 
-** DONE Matlab implementation
+** Durchprobieren
 
-* Spikes
-
-** Skalieren
+** Skalieren von Zeilen
 Skaliere die Zeilen, wo Spikes gebildet werden
 - Plot im Zusammenhang mit der Kondition
 
@@ -45,12 +159,38 @@ Spike zu berechnen (Ründungsfehler).
   Wert verfügbar ist.
 - Zusammenhang mit der Kondition?
 - Werte unterhalb vom Spike werden immer kleiner (für allgemeine Matrizen)
- 
+
+** TODO Lineare Abhängigkeit
+Überprüfe, ob bei einem schlecht konditioniertem grobem System (mit ungünstig
+gewählten Grenzen) die Zeilen linear abhängig sind. Falls ja, gehe die Zeilen
+eines Blocks durch und setze die Grenzen nach der maximalen Determinante
+[Ansatz: die Werte unterhalb des Spikes werden immer kleiner, und können
+vernachlässigt werden]
+
+** Randomisierung
+Falls sich keine (einfache) Strategie finden lässt, welche für eine breitere
+Klasse von Matrizen zu einer günstigeren Konditionierung des groben Systems
+führt, kann man auch randomisiert vorgehen.
+  
 * Cyclic reduction
 
 ** TODO Implementation in Python
 *** (Scaled) Pivoting
 *** Cyclic reduction
+
+** Kombinationen
+In jedem Block können entweder die "geraden" oder die "ungeraden" Matrizes
+zunächst bearbeitet werden.
+
+** Generalized cyclic reduction
+Bei CR werden zunächst die "geraden", dann die "ungeraden" Indizes
+bearbeitet. Dies kann verallgemeinert werden: man wählt die Zeilen welche
+bearbeitet werden sollen, bearbeitet diese, und fährt dann weiter.
+
+** Parallel cyclic reduction
+Bei PCR werden "gerade" und "ungerade" Zeilen (in jedem Block) parallel verarbeitet.
+Dabei könnte man jeweils überprüfen, welche Wahl zu einem besseren Resultat
+(besser konditioniertes grobes System?) führt.
 
 * Preconditioning
 We want to have a (stable) method where the condition of the coarse
