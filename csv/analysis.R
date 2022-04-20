@@ -4,7 +4,7 @@ select_min_fre <- function(df, ...) {
   df_min <- df %>% 
     group_by(ID) %>% 
     filter(...) %>% 
-    slice_min(order_by = fre, with_ties = FALSE, n=5) # Save the 5 best (minimum) values
+    slice_min(order_by = fre, with_ties = FALSE) # Only keep the first minimum (multiple may be available)
   return(df_min)
 }
 
@@ -27,3 +27,17 @@ min_fre_static_partition <- select_min_fre(matrix_data_all[[1]], k_max_up == 0, 
 min_fre_shifted_partition_halo_0 <- select_min_fre(matrix_data_all[[1]])
 min_fre_shifted_partition_halo_1 <- select_min_fre(matrix_data_all[[2]])
 min_fre_shifted_partition_halo_2 <- select_min_fre(matrix_data_all[[3]])
+
+# Create bar plot of minimum FRE for different values of n_halo
+barplot_data <- matrix(nrow=4, ncol=20)
+barplot_data[1,] <- min_fre_static_partition[["fre"]]
+barplot_data[2,] <- min_fre_shifted_partition_halo_0[["fre"]]
+barplot_data[3,] <- min_fre_shifted_partition_halo_1[["fre"]]
+barplot_data[4,] <- min_fre_shifted_partition_halo_2[["fre"]]
+
+par(mfrow=c(4,5))
+for (i in seq(1,20)) {
+  title <- sprintf("Matrix %d", i)
+  barplot(height=barplot_data[,i], col=c(1:4), log="y", main=title, legend.text=T)
+}
+#legend("topright", legend=c("S", "H0", "H1", "H2"), fill=c(1:4))

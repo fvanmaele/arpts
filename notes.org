@@ -5,7 +5,8 @@
 
 * Kondition
 
-** Grenzen dynamisch bestimmen
+** DONE Grenzen dynamisch bestimmen
+CLOSED: [2022-04-20 Wed 01:12]
 "Suchen" innerhalb eines bestimmten Bereichs
 1. Partition mit grösster Kondition bestimmen
 2. Obere/untere Grenze verschieben (schrittweise, bis k=max Zeilen)
@@ -14,7 +15,8 @@
    - Zwischenwerte beibehalten, Minimum wählen
 4. Gehe zu Schritt 1
 
-** Halo
+** DONE Halo
+CLOSED: [2022-04-20 Wed 01:12]
 With a 1 row/column halo, not all elements of interface between
 partitions (matrix seen as a graph) can be captured. The same holds
 for 2 row/columns (how about 3?)
