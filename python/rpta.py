@@ -103,6 +103,59 @@ def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse,
         d_coarse[2 * partition_id + 1] = d_coarse_lower
 
 
+# TODO: keep partial results (in eleminate_band) of coarse system and compute determinant 
+# The observation here is that consecutive rows in the coarse system are, for a bad partitioning,
+# nearly linearly independent. As such, we can optimize for this when constructing (rows of)
+# the coarse system.
+def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, threshold=0):
+    N = len(a_fine)
+    assert(part_min < part_max)
+    assert(part_min > 0)
+    assert(part_max < N-1)
+    
+    partition = []
+    partition_begin = 0 # Index of first row (upper boundary) 
+    
+    while partition_begin + part_max < N:
+        dets = []
+        for offset in range(part_min, part_max):
+            partition_end = min(partition_begin + offset, N-1)
+            
+            a_coarse_lower, b_coarse_lower, c_coarse_lower, d_coarse_lower = eliminate_band(
+                a_fine[partition_begin:partition_end],
+                b_fine[partition_begin:partition_end],
+                c_fine[partition_begin:partition_end],
+                d_fine[partition_begin:partition_end],
+                threshold)
+            c_coarse_upper, b_coarse_upper, a_coarse_upper, d_coarse_upper = eliminate_band(
+                list(reversed(c_fine[partition_begin:partition_end])),
+                list(reversed(b_fine[partition_begin:partition_end])),
+                list(reversed(a_fine[partition_begin:partition_end])),
+                list(reversed(d_fine[partition_begin:partition_end])),
+                threshold)
+            
+            # Criterion: maximum determinant
+            mtx = np.matrix([[b_coarse_upper, c_coarse_upper],
+                             [a_coarse_lower, b_coarse_lower]])
+            mtx_det = abs(np.linalg.det(mtx))
+            dets.append(mtx_det)
+            # print("{}, {}: |det| = {}".format(partition_begin, partition_end, mtx_det))
+
+        dets_argmax = np.argmax(dets)
+        # print("{}, {}: |det| (max) = {}".format(
+        #     partition_begin, partition_begin + part_min + dets_argmax, dets[dets_argmax]))
+        partition.append([partition_begin, partition_begin + part_min + dets_argmax])
+
+        # Go to next partition
+        partition_begin = min(partition_begin + part_min + dets_argmax, N)
+    
+    # Append last partition
+    if partition_begin < N:
+        partition.append([partition_begin, N])
+
+    return partition
+
+
 # x1_prev_partition = 0 for the first partition
 # x0_next_partition = 0 for the last partition
 def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
@@ -270,8 +323,8 @@ def rptapp_generate_partition_det(a_fine, b_fine, c_fine, part_min, part_max):
         
         # Criterion: maximum determinant
         dets_argmax = np.argmax(dets)
-        print("{}, {}: |det| (max) = {}".format(
-            i_begin, i_begin + part_min + dets_argmax, dets[dets_argmax]))
+        # print("{}, {}: |det| (max) = {}".format(
+        #     i_begin, i_begin + part_min + dets_argmax, dets[dets_argmax]))
         partition.append([i_begin, i_begin + part_min + dets_argmax])
 
         # Go to next partition
@@ -282,7 +335,7 @@ def rptapp_generate_partition_det(a_fine, b_fine, c_fine, part_min, part_max):
         mtx = np.matrix([[b_fine[i_begin], c_fine[i_begin]], 
                          [a_fine[N-1], b_fine[N-1]]])
         det = abs(np.linalg.det(mtx))
-        print("{}, {}: |det| = {}".format(i_begin, N-1, det))
+        # print("{}, {}: |det| = {}".format(i_begin, N-1, det))
         partition.append([i_begin, N])
 
     return partition
@@ -372,31 +425,34 @@ a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
 # dyn_partition, mtx_cond, mtx_cond_partmax, mtx_cond_partmax_dyn = rptapp_generate_partition(
 #     a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max_down)
 static_partition = condition.generate_static_partition(N_fine, M)
-dyn_partition = rptapp_generate_partition_det(a_fine, b_fine, c_fine, 16, 64)
 
+# rpta_partition = static_partition
 # rpta_partition = dyn_partition
-rpta_partition = static_partition
-N_coarse = len(rpta_partition)*2
+for lim in range(16, 72):
+    # rpta_partition = rptapp_generate_partition_det(a_fine, b_fine, c_fine, 16, 64)
+    rpta_partition = rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, 10, lim, threshold=0)
+    N_coarse = len(rpta_partition)*2
+    
+    # Reduce to coarse system
+    a_coarse = np.zeros(N_coarse)
+    b_coarse = np.zeros(N_coarse)
+    c_coarse = np.zeros(N_coarse)
+    d_coarse = np.zeros(N_coarse)
+    
+    rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
+                  rpta_partition, threshold=0)
+    mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+    mtx_cond_coarse = np.linalg.cond(mtx_coarse)
+    
+    # Plot coarse system
+    condition.plot_coarse_system(mtx_coarse, "Condition: {:e}".format(mtx_cond_coarse))
+    
+    # Insert solution
+    x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
+    x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, rpta_partition, threshold=0)
+    fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+    print("{}, {:e}, {:e}".format(lim, fre, mtx_cond_coarse))
 
-# Reduce to coarse system
-a_coarse = np.zeros(N_coarse)
-b_coarse = np.zeros(N_coarse)
-c_coarse = np.zeros(N_coarse)
-d_coarse = np.zeros(N_coarse)
-
-rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
-              rpta_partition, threshold=0)
-mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
-mtx_cond_coarse = np.linalg.cond(mtx_coarse)
-
-# Plot coarse system
-condition.plot_coarse_system(mtx_coarse, "Condition: {:e}".format(mtx_cond_coarse))
-
-# Insert solution
-x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
-x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, rpta_partition, threshold=0)
-fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
-print("{:e}, {:e}".format(fre, mtx_cond_coarse))
 
 # %%
 def main():

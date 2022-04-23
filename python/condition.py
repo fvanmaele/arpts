@@ -404,7 +404,7 @@ def tridiag_dynamic_partition(mtx_fine, static_partition, n_halo=1, k_max_up=5, 
                 print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step-1, cond_new_upper), file=stderr)
             # Mask upper neighbor
             # partition_mask[conds_argmax_step-1] = True
-            
+
             # if conds[conds_argmax_step-1] < cond_new_upper:
             #     print('Warning: repartitioning resulted in higher condition for upper partition {}'.format(
             #         conds_argmax_step-1), file=stderr)
