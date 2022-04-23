@@ -250,6 +250,44 @@ def rptapp_generate_partition(a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max
     return dyn_partition, mtx_cond, mtx_cond_partmax, mtx_cond_partmax_dyn
 
 
+def rptapp_generate_partition_det(a_fine, b_fine, c_fine, part_min, part_max):
+    N = len(a_fine)
+    assert(part_min < part_max)
+    assert(part_min > 0)
+    assert(part_max < N-1)
+    
+    partition = []
+    i_begin = 0 # Index of first row (upper boundary)    
+    while i_begin + part_max < N:
+        dets = []
+        for offset in range(part_min, part_max):
+            i_target = min(i_begin + offset, N-1)
+            mtx = np.matrix([[b_fine[i_begin], c_fine[i_begin]], 
+                             [a_fine[i_target], b_fine[i_target]]])
+            dets.append(abs(np.linalg.det(mtx)))
+            # print("{}, {}: |det| = {}".format(
+            #     i_begin, i_target, abs(np.linalg.det(mtx))))
+        
+        # Criterion: maximum determinant
+        dets_argmax = np.argmax(dets)
+        print("{}, {}: |det| (max) = {}".format(
+            i_begin, i_begin + part_min + dets_argmax, dets[dets_argmax]))
+        partition.append([i_begin, i_begin + part_min + dets_argmax])
+
+        # Go to next partition
+        i_begin = min(i_begin + part_min + dets_argmax, N)
+    
+    # Append last partition
+    if i_begin < N:
+        mtx = np.matrix([[b_fine[i_begin], c_fine[i_begin]], 
+                         [a_fine[N-1], b_fine[N-1]]])
+        det = abs(np.linalg.det(mtx))
+        print("{}, {}: |det| = {}".format(i_begin, N-1, det))
+        partition.append([i_begin, N])
+
+    return partition
+
+
 # XXX: "it must be true that `num_partitions_per_block` <= block dimension"
 # TODO: move condition logic to a separate function if possible
 def rptapp(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
@@ -318,7 +356,7 @@ def rptapp_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M,
 # %%
 N_fine = 512
 # M = 61
-M = 23
+M = 32
 N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
 mtx_id = 14
 k_max_up = 0
@@ -331,10 +369,14 @@ n_halo = 1
 a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
     mtx_id, N_fine, unif_low=-1, unif_high=1, seed=0)
 
-# Generate dynamic partition
-dyn_partition, mtx_cond, mtx_cond_partmax, mtx_cond_partmax_dyn = rptapp_generate_partition(
-    a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max_down)
-N_coarse = len(dyn_partition)*2
+# dyn_partition, mtx_cond, mtx_cond_partmax, mtx_cond_partmax_dyn = rptapp_generate_partition(
+#     a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max_down)
+static_partition = condition.generate_static_partition(N_fine, M)
+dyn_partition = rptapp_generate_partition_det(a_fine, b_fine, c_fine, 16, 64)
+
+# rpta_partition = dyn_partition
+rpta_partition = static_partition
+N_coarse = len(rpta_partition)*2
 
 # Reduce to coarse system
 a_coarse = np.zeros(N_coarse)
@@ -343,13 +385,18 @@ c_coarse = np.zeros(N_coarse)
 d_coarse = np.zeros(N_coarse)
 
 rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
-              dyn_partition, threshold=0)
+              rpta_partition, threshold=0)
 mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
 mtx_cond_coarse = np.linalg.cond(mtx_coarse)
 
 # Plot coarse system
 condition.plot_coarse_system(mtx_coarse, "Condition: {:e}".format(mtx_cond_coarse))
 
+# Insert solution
+x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
+x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, rpta_partition, threshold=0)
+fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+print("{:e}, {:e}".format(fre, mtx_cond_coarse))
 
 # %%
 def main():

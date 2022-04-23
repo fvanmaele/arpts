@@ -19,7 +19,7 @@ TRIDIAG_VERBOSE=False
 def generate_static_partition(N_fine, M):
     """
     Generate a partition of the index set [0, 1, ..., N_fine-1] where each
-    partition has size M.
+    partition has size M (if N divides M evenly), or the last partition has size N % M.
 
     Parameters
     ----------
