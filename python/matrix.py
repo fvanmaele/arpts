@@ -170,9 +170,8 @@ def generate_matrix(ID, N, unif_low=-1, unif_high=1):
         return tridiag(-np.ones(N-1), 4*np.ones(N), c_unif)
 
 
-def generate_linear_system(mtx_id, N_fine, unif_low, unif_high, seed=0):
+def generate_linear_system(mtx_id, N_fine, unif_low, unif_high):
     # Solution
-    np.random.seed(seed)
     x_fine = np.random.normal(3, 1, N_fine)
     
     # Coefficient matrix

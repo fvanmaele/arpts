@@ -52,6 +52,29 @@ def generate_static_partition(N_fine, M):
     return partition_idx
 
 
+def generate_random_partition(N, part_min, part_max):
+    assert(part_min < part_max)
+    assert(part_min > 0)
+    assert(part_max < N-1)
+
+    partition = []
+    partition_begin = 0
+    remainder = N
+
+    while remainder >= 0:
+        offset = np.random.randint(part_min, part_max)
+        partition.append([partition_begin, min(partition_begin+offset, N)])
+        partition_begin += offset
+        remainder -= offset
+
+    # If last partition is too low, merge into upper neighbor
+    if partition[-1][1] - partition[-1][0] < part_min:
+        partition[-2] = [partition[-2][0], N]
+        partition.pop()
+    
+    return partition
+
+
 def plot_coarse_system(mtx_coarse, title='Coarse system', cmap='bwr'):
     """
     Visualization of a low-dimensional matrix. If the matrix has negative
