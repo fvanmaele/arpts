@@ -52,6 +52,45 @@ def generate_static_partition(N_fine, M):
     return partition_idx
 
 
+def generate_partition_func(a_fine, b_fine, c_fine, part_min, part_max, 
+                                   func, argopt):
+    N = len(a_fine)
+    assert(part_min < part_max)
+    assert(part_min > 0)
+    assert(part_max < N-1)
+
+    partition = []
+    i_begin = 0 # Index of first row (upper boundary)    
+    while i_begin + part_max < N:
+        f_values = []
+        for offset in range(part_min, part_max):
+            i_target = min(i_begin + offset, N-1)
+            mtx = np.matrix([[b_fine[i_begin], c_fine[i_begin]], 
+                             [a_fine[i_target], b_fine[i_target]]])
+            f_values.append(abs(func(mtx)))
+            # print("{}, {}: |det| = {}".format(
+            #     i_begin, i_target, abs(np.linalg.det(mtx))))
+        
+        # Criterion: maximum determinant
+        f_values_argopt = argopt(f_values)
+        # print("{}, {}: |det| (max) = {}".format(
+        #     i_begin, i_begin + part_min + f_values_argopt, f_values[f_values_argopt]))
+        partition.append([i_begin, i_begin + part_min + f_values_argopt])
+
+        # Go to next partition
+        i_begin = min(i_begin + part_min + f_values_argopt, N)
+    
+    # Append last partition
+    if i_begin < N:
+        # mtx = np.matrix([[b_fine[i_begin], c_fine[i_begin]], 
+        #                  [a_fine[N-1], b_fine[N-1]]])
+        # f_value = abs(func(mtx))
+        # print("{}, {}: |det| = {}".format(i_begin, N-1, f_value))
+        partition.append([i_begin, N])
+
+    return partition
+
+
 def generate_random_partition(N, part_min, part_max):
     assert(part_min < part_max)
     assert(part_min > 0)

@@ -13,16 +13,6 @@ import partition
 import matrix
 import rpta
 
-# %%
-N_fine = 512
-# M = 61
-M = 32
-N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
-#mtx_id = 9
-
-# dyn_partition, mtx_cond, mtx_cond_partmax, mtx_cond_partmax_dyn = rptapp_generate_partition(
-#     a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max_down)
-static_partition = partition.generate_static_partition(N_fine, M)
 
 # %%
 def reduce_run(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, partition, threshold=0):
@@ -54,8 +44,26 @@ def reduce_run(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, partition, thre
     return fre, mtx_cond_coarse
 
 
-# %%
-# Emperically, a difference of 5-10 between lim_lo and lim_hi leads to a good
+# %% Input parameters
+N_fine = 512
+# M = 61
+M = 32
+N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
+#mtx_id = 9
+
+# %% TODO: Partition with fixed-size blocks
+# dyn_partition, mtx_cond, mtx_cond_partmax, mtx_cond_partmax_dyn = rptapp_generate_partition(
+#     a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max_down)
+static_partition = partition.generate_static_partition(N_fine, M)
+
+
+# %% TODO: Test setting boundaries from original system
+#    rpta_partition = partition.generate_partition_func(
+#        a_fine, b_fine, c_fine, 16, 64, func=np.linalg.det, argopt=np.argmax)
+
+
+# %% Test minimal condition of reduced system (condition for partition boundaries)
+# Empirically, a difference of 5-10 between lim_lo and lim_hi leads to a good
 # forward relative error. It also limits the performance impact, especially
 # when redundant computations are done.
 print('ID,lim_lo,lim_hi,fre,cond_coarse')
@@ -70,8 +78,7 @@ for mtx_id in range(1, 21):
         for lim_hi in range(20, 72):
             if lim_lo >= lim_hi: 
                 continue
-        #    rpta_partition = rpta.rptapp_generate_partition_func(
-        #            a_fine, b_fine, c_fine, 16, 64, func=np.linalg.det, argopt=np.argmax)
+
             rpta_partition = rpta.rptapp_reduce_dynamic(
                     a_fine, b_fine, c_fine, d_fine, lim_lo, lim_hi, threshold=0)
             N_coarse = len(rpta_partition)*2
@@ -94,7 +101,6 @@ for mtx_id in range(1,21): # XXX: catch singular matrix for mtx_id == 15
 #    n_samples = 50
     n_samples = 100
     errs, conds = [], []
-
     part_min, part_max = 16, 64
 
 

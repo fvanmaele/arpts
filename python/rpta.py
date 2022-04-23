@@ -301,50 +301,10 @@ def rptapp_generate_partition(a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max
     return dyn_partition, mtx_cond, mtx_cond_partmax, mtx_cond_partmax_dyn
 
 
-# XXX: take a function as parameter (e.g. det, cond)
-def rptapp_generate_partition_func(a_fine, b_fine, c_fine, part_min, part_max, 
-                                   func, argopt):
-    N = len(a_fine)
-    assert(part_min < part_max)
-    assert(part_min > 0)
-    assert(part_max < N-1)
-
-    partition = []
-    i_begin = 0 # Index of first row (upper boundary)    
-    while i_begin + part_max < N:
-        f_values = []
-        for offset in range(part_min, part_max):
-            i_target = min(i_begin + offset, N-1)
-            mtx = np.matrix([[b_fine[i_begin], c_fine[i_begin]], 
-                             [a_fine[i_target], b_fine[i_target]]])
-            f_values.append(abs(func(mtx)))
-            # print("{}, {}: |det| = {}".format(
-            #     i_begin, i_target, abs(np.linalg.det(mtx))))
-        
-        # Criterion: maximum determinant
-        f_values_argopt = argopt(f_values)
-        # print("{}, {}: |det| (max) = {}".format(
-        #     i_begin, i_begin + part_min + f_values_argopt, f_values[f_values_argopt]))
-        partition.append([i_begin, i_begin + part_min + f_values_argopt])
-
-        # Go to next partition
-        i_begin = min(i_begin + part_min + f_values_argopt, N)
-    
-    # Append last partition
-    if i_begin < N:
-        # mtx = np.matrix([[b_fine[i_begin], c_fine[i_begin]], 
-        #                  [a_fine[N-1], b_fine[N-1]]])
-        # f_value = abs(func(mtx))
-        # print("{}, {}: |det| = {}".format(i_begin, N-1, f_value))
-        partition.append([i_begin, N])
-
-    return partition
-
-
 # XXX: "it must be true that `num_partitions_per_block` <= block dimension"
 # TODO: move condition logic to a separate function if possible
-def rptapp(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
-           k_max_up=0, k_max_down=0, threshold=0, n_halo=1, level=0):
+def rptapp_part_cond(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
+                     k_max_up=0, k_max_down=0, threshold=0, n_halo=1, level=0):
     # N_fine = len(a_fine)
     # N_coarse = (ceil(N_fine / M)) * 2
 
@@ -373,16 +333,15 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     # print("\nCoarse system (M = {}, k_max_up = {}, k_max_down = {}), condition: {:e}".format(
     #     M, k_max_up, k_max_down, mtx_cond_coarse))
 
+    # If system size below threshold, solve directly; otherwise, call recursively.
+    # Note: each recursive call starts from a static partition, and computes
+    # new boundaries based on condition of the partitions
+    # TODO: set maximum level for adjusting partition boundaries?
     if len(a_coarse) <= N_tilde:
-        # If system size below threshold, solve directly
         x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
     else:
-        # Otherwise, do recursive call
-        # Note: each recursive call starts from a static partition, and computes
-        # new boundaries based on condition of the partitions
-        # TODO: set maximum level for adjusting partition boundaries?
-        x_coarse = rptapp(a_coarse, b_coarse, c_coarse, d_coarse, N_tilde, M, 
-                          k_max_up, k_max_down, threshold, n_halo, level=level+1)    
+        x_coarse = rptapp_part_cond(a_coarse, b_coarse, c_coarse, d_coarse, N_tilde, M, 
+                                    k_max_up, k_max_down, threshold, n_halo, level=level+1)    
 
     # Substitute into fine system
     x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, 
@@ -391,10 +350,10 @@ def rptapp(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     return x_fine_rptapp, mtx_cond, mtx_cond_coarse, mtx_cond_partmax, mtx_cond_partmax_dyn
   
 
-def rptapp_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
+def rptapp_part_cond_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
                  k_max_up, k_max_down, threshold, n_halo):
     try:
-        x_fine_rptapp, cond, cond_coarse, cond_partmax, cond_partmax_dyn = rptapp(
+        x_fine_rptapp, cond, cond_coarse, cond_partmax, cond_partmax_dyn = rptapp_part_cond(
                 a_fine, b_fine, c_fine, d_fine, N_tilde, M, k_max_up, k_max_down, 0, n_halo)
         fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
         print("{},{},{},{},{},{},{},{},{}".format(
@@ -434,8 +393,8 @@ def main():
     
         for k_max_up in range(0, k_sup):
             for k_max_down in range(0, k_sup):
-                rptapp_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
-                             k_max_up, k_max_down, 0, n_halo)
+                rptapp_part_cond_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
+                                       k_max_up, k_max_down, 0, n_halo)
 
 if __name__ == "__main__":
     main()
