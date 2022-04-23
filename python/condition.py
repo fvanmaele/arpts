@@ -159,7 +159,7 @@ def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=0
         for k_up in range(0, k_max_up+1):
             if i_begin - k_up <= i_upper_begin:
                 conds_shift_upper.append(-np.Inf) # ensure index is ignored for heuristic below
-#                print('warning: upper shift ignored (begin = {}, end = {})'.format(i_upper_begin, i_begin-k_up), file=stderr)
+                # print('warning: upper shift ignored (begin = {}, end = {})'.format(i_upper_begin, i_begin-k_up), file=stderr)
                 continue
 
             mtx_upper_cond, mtx_upper = tridiag_cond_partition(
@@ -177,7 +177,7 @@ def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=0
         for k_down in range(0, k_max_down+1):
             if i_end + k_down >= i_lower_end:
                 conds_shift_lower.append(-np.Inf) # ensure index is ignored for heuristic below
-#                print('warning: lower shift ignored (begin = {}, end = {})'.format(i_end+k_down, i_lower_end), file=stderr)
+                # print('warning: lower shift ignored (begin = {}, end = {})'.format(i_end+k_down, i_lower_end), file=stderr)
                 continue
 
             mtx_lower_cond, mtx_lower = tridiag_cond_partition(
@@ -208,13 +208,13 @@ def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=0
       
     # Compute minimal condition number for partition and its neighbors
     conds_shift_argmin = min(conds_shift, key=conds_shift.get)
-#    print("argmin k_up = {}, k_down = {}".format(conds_shift_argmin[0], conds_shift_argmin[1]), file=stderr)
+    # print("argmin k_up = {}, k_down = {}".format(conds_shift_argmin[0], conds_shift_argmin[1]), file=stderr)
     if k_max_up > 0:
         conds_shift_upper_argmin = np.argmin(conds_shift_upper)
-#        print("argmin k_up [neigh] = {}".format(conds_shift_upper_argmin), file=stderr)
+        # print("argmin k_up [neigh] = {}".format(conds_shift_upper_argmin), file=stderr)
     if k_max_down > 0:
         conds_shift_lower_argmin = np.argmin(conds_shift_lower)
-#        print("argmin k_down [neigh] = {}".format(conds_shift_lower_argmin), file=stderr)
+        # print("argmin k_down [neigh] = {}".format(conds_shift_lower_argmin), file=stderr)
 
     # Heuristic: if minimal neighbor has condition of a higher magnitude 
     # than the corresponding neighbor for the minimal partition, swap and check
@@ -229,14 +229,14 @@ def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=0
         if conds_shift[(conds_shift_upper_argmin, conds_shift_argmin_k_down)] < 10*conds_shift[(conds_shift_argmin_k_up, conds_shift_argmin_k_down)]:
             if conds_shift_upper[conds_shift_argmin_k_up] < 10*conds_shift_upper[conds_shift_upper_argmin]:
                 conds_shift_argmin_k_up = conds_shift_upper_argmin
-#        print("argmin k_up = {} [heuristic]".format(conds_shift_argmin_k_up), file=stderr)
+        # print("argmin k_up = {} [heuristic]".format(conds_shift_argmin_k_up), file=stderr)
     
     # Verify lower neighbor (k_up fixed)
     if k_max_down > 0:
         if (conds_shift[(conds_shift_argmin_k_up, conds_shift_lower_argmin)] < 10*conds_shift[(conds_shift_argmin_k_up, conds_shift_argmin_k_down)]):
             if conds_shift_lower[conds_shift_argmin_k_down] < 10*conds_shift_lower[conds_shift_lower_argmin]:
                 conds_shift_argmin_k_down = conds_shift_lower_argmin
-#        print("argmin k_down = {} [heuristic]".format(conds_shift_argmin_k_down), file=stderr)
+        # print("argmin k_down = {} [heuristic]".format(conds_shift_argmin_k_down), file=stderr)
 
     conds_shift_argmin = (conds_shift_argmin_k_up, conds_shift_argmin_k_down)
 
@@ -336,7 +336,7 @@ def tridiag_dynamic_partition(mtx_fine, static_partition, n_halo=1, k_max_up=5, 
     partition_mask = [None] * n_partitions
     conds_decreasing = np.flip(np.argsort(conds)) # contains partition IDs with decreasing condition
     conds_argmax = conds_decreasing[0]
-#    print("Maximum condition: Partition {} (A_PP) {:e}".format(conds_argmax, conds[conds_argmax]))
+    # print("Maximum condition: Partition {} (A_PP) {:e}".format(conds_argmax, conds[conds_argmax]))
 
     # Keep track of conditions for shifted partitions for comparison purposes
     conds_adjusted = conds[:]
@@ -372,10 +372,11 @@ def tridiag_dynamic_partition(mtx_fine, static_partition, n_halo=1, k_max_up=5, 
                 mask_range = slice(conds_argmax_step, conds_argmax_step+2)
 
         # all([]) returns True, which occurs if mark_range = slice(0, 0)
+        # XXX: make partition behavior variable
         if len(partition_mask[mask_range]) > 0 and all(partition_mask[mask_range]):
             continue
-#        if partition_mask[part_id] is True:
-#            continue
+        # if partition_mask[part_id] is True:
+        #     continue
         
         if TRIDIAG_VERBOSE:
             print("\nMaximum condition (step = {}): Partition {} (A_PP) {:e}".format(
@@ -388,44 +389,46 @@ def tridiag_dynamic_partition(mtx_fine, static_partition, n_halo=1, k_max_up=5, 
         if TRIDIAG_VERBOSE:
             print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step, cond_new), file=stderr)
 
-        # Mark partition and neighbors as processed
+        # Mark partition as processed
         partition_mask[conds_argmax_step] = True # partition
 
-#        if conds[conds_argmax_step] < cond_new:
-#            print('Warning: repartitioning resulted in higher condition for partition {}'.format(
-#                conds_argmax_step), file=stderr)
-#            break
+        # if conds[conds_argmax_step] < cond_new:
+        #     print('Warning: repartitioning resulted in higher condition for partition {}'.format(
+        #         conds_argmax_step), file=stderr)
+        #     break
         conds_adjusted[conds_argmax_step] = cond_new
 
         # XXX: implicit verification of k_max_* > 0
         if cond_new_upper is not None:
             if TRIDIAG_VERBOSE:
                 print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step-1, cond_new_upper), file=stderr)
-            # partition_mask[conds_argmax_step-1] = True # upper neighbor
+            # Mask upper neighbor
+            # partition_mask[conds_argmax_step-1] = True
             
-#            if conds[conds_argmax_step-1] < cond_new_upper:
-#                print('Warning: repartitioning resulted in higher condition for upper partition {}'.format(
-#                    conds_argmax_step-1), file=stderr)
-#                break
+            # if conds[conds_argmax_step-1] < cond_new_upper:
+            #     print('Warning: repartitioning resulted in higher condition for upper partition {}'.format(
+            #         conds_argmax_step-1), file=stderr)
+            #     break
             conds_adjusted[conds_argmax_step-1] = cond_new_upper
 
         if cond_new_lower is not None:
             if TRIDIAG_VERBOSE:
                 print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step+1, cond_new_lower), file=stderr)
-            # partition_mask[conds_argmax_step+1] = True # lower neighbor
+            # Mask lower neighbor
+            # partition_mask[conds_argmax_step+1] = True
 
-#            if conds[conds_argmax_step+1] < cond_new_lower:
-#                print('Warning: repartitioning resulted in higher condition for lower partition {}'.format(
-#                    conds_argmax_step+1), file=stderr) 
-#                break
+            # if conds[conds_argmax_step+1] < cond_new_lower:
+            #     print('Warning: repartitioning resulted in higher condition for lower partition {}'.format(
+            #         conds_argmax_step+1), file=stderr) 
+            #     break
             conds_adjusted[conds_argmax_step+1] = cond_new_lower
         
         if TRIDIAG_VERBOSE:
             print(partition_mask)
 
     conds_new_argmax = np.argmax(conds_adjusted)
-#    print("Maximum condition (adjusted): Partition {} (A_PP) {:e}".format(
-#        conds_new_argmax, conds_adjusted[conds_new_argmax]))
+    # print("Maximum condition (adjusted): Partition {} (A_PP) {:e}".format(
+    #     conds_new_argmax, conds_adjusted[conds_new_argmax]))
 
     # Return additional values for parameter study
     return dynamic_partition, conds[conds_argmax], conds_adjusted[conds_new_argmax]

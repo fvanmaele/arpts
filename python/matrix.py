@@ -67,21 +67,6 @@ def read_dense_matrixmarket(filename):
         return arr
 
 
-def setup_linear_system(mtx_id, N_fine, unif_low, unif_high, seed=0):
-    # Solution
-    np.random.seed(seed)
-    x_fine = np.random.normal(3, 1, N_fine)
-    
-    # Coefficient matrix
-    mtx = generate_matrix(mtx_id, N_fine, unif_low, unif_high)
-    a_fine, b_fine, c_fine = numpy_matrix_to_bands(mtx)
-    
-    # Right-hand side
-    d_fine = np.matmul(mtx, x_fine)
-    
-    return a_fine, b_fine, c_fine, d_fine, x_fine
-
-
 def tridiag(a, b, c, sparse_result=0):
     # Precondition checks
     N = len(b)
@@ -183,6 +168,21 @@ def generate_matrix(ID, N, unif_low=-1, unif_high=1):
 
     elif ID == 20:
         return tridiag(-np.ones(N-1), 4*np.ones(N), c_unif)
+
+
+def generate_linear_system(mtx_id, N_fine, unif_low, unif_high, seed=0):
+    # Solution
+    np.random.seed(seed)
+    x_fine = np.random.normal(3, 1, N_fine)
+    
+    # Coefficient matrix
+    mtx = generate_matrix(mtx_id, N_fine, unif_low, unif_high)
+    a_fine, b_fine, c_fine = numpy_matrix_to_bands(mtx)
+    
+    # Right-hand side
+    d_fine = np.matmul(mtx, x_fine)
+    
+    return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
 def main():
