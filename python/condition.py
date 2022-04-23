@@ -128,6 +128,7 @@ def tridiag_cond_partition(mtx_fine, i_begin, i_end, n_halo):
 
 
 # Note: invariants on part (half-open intervals)
+# TODO: take ranges for k_max_up, k_max_down (shift upwards/downwards for both boundaries)
 def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=0):
     assert(k_max_down >= 0)
     assert(k_max_up >= 0)
@@ -215,11 +216,12 @@ def tridiag_cond_shift(mtx_fine, part, part_id, n_halo, k_max_up=5, k_max_down=0
         conds_shift_lower_argmin = np.argmin(conds_shift_lower)
 #        print("argmin k_down [neigh] = {}".format(conds_shift_lower_argmin), file=stderr)
 
-#    # Heuristic: if minimal neighbor has condition of a higher magnitude 
-#    # than the corresponding neighbor for the minimal partition, swap and check
-#    # XXX: this does not cover differences within the same order of magnitude
-#    # In some cases, an improvement in condition necessarily leads to a worse condition
-#    # of the neighbor (e.g. matrix 14), and we have to choose which to improve.
+    # Heuristic: if minimal neighbor has condition of a higher magnitude 
+    # than the corresponding neighbor for the minimal partition, swap and check
+    # XXX: this does not cover differences within the same order of magnitude
+    # In some cases, an improvement in condition necessarily leads to a worse condition
+    # of the neighbor (e.g. matrix 14), and we have to choose which to improve.
+    # TODO: take both factors (10, 10) as an argument
     conds_shift_argmin_k_up, conds_shift_argmin_k_down = conds_shift_argmin
 
     # Verify upper neighbor (k_down fixed)
@@ -331,9 +333,6 @@ def tridiag_dynamic_partition(mtx_fine, static_partition, n_halo=1, k_max_up=5, 
                 part_id, np.shape(mtx_part)[0], np.shape(mtx_part)[1], mtx_part_cond), file=stderr)
 
     # Create mask for partition (True if boundaries were adjusted)
-    # XXX: When shifting partition boundaries, the number of partitions remains fixed.
-    # Allow to "merge" one partition into the other, reducing the number of partitions?
-    # TODO: This can be done automatically when a partition has length 0 or 1
     partition_mask = [None] * n_partitions
     conds_decreasing = np.flip(np.argsort(conds)) # contains partition IDs with decreasing condition
     conds_argmax = conds_decreasing[0]
@@ -402,7 +401,7 @@ def tridiag_dynamic_partition(mtx_fine, static_partition, n_halo=1, k_max_up=5, 
         if cond_new_upper is not None:
             if TRIDIAG_VERBOSE:
                 print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step-1, cond_new_upper), file=stderr)
-            #partition_mask[conds_argmax_step-1] = True # upper neighbor
+            # partition_mask[conds_argmax_step-1] = True # upper neighbor
             
 #            if conds[conds_argmax_step-1] < cond_new_upper:
 #                print('Warning: repartitioning resulted in higher condition for upper partition {}'.format(
@@ -413,7 +412,7 @@ def tridiag_dynamic_partition(mtx_fine, static_partition, n_halo=1, k_max_up=5, 
         if cond_new_lower is not None:
             if TRIDIAG_VERBOSE:
                 print("Partition {} (A_PP, adjusted) {:e}".format(conds_argmax_step+1, cond_new_lower), file=stderr)
-            #partition_mask[conds_argmax_step+1] = True # lower neighbor
+            # partition_mask[conds_argmax_step+1] = True # lower neighbor
 
 #            if conds[conds_argmax_step+1] < cond_new_lower:
 #                print('Warning: repartitioning resulted in higher condition for lower partition {}'.format(
