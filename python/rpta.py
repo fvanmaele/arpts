@@ -381,8 +381,9 @@ def main():
     # d_fine = np.matmul(mtx, x_fine)
 
     print("ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn")
+    np.random.seed(0)
     a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
-        mtx_id, N_fine, unif_low, unif_high, 0)
+        mtx_id, N_fine, unif_low, unif_high)
 
     # Take all combinations of partition size / k_max_up / k_max_down
     Ms = range(16, 65)

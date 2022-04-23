@@ -57,9 +57,29 @@ N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
 static_partition = partition.generate_static_partition(N_fine, M)
 
 
-# %% TODO: Test setting boundaries from original system
-#    rpta_partition = partition.generate_partition_func(
-#        a_fine, b_fine, c_fine, 16, 64, func=np.linalg.det, argopt=np.argmax)
+# %% Test setting boundaries from original system
+# TODO: generate output
+print('ID,lim_lo,lim_hi,fre,cond_coarse')
+
+for mtx_id in range(1, 21):
+    # Generate fine system
+    np.random.seed(0)
+    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
+            mtx_id, N_fine, unif_low=-1, unif_high=1)
+
+    for lim_lo in range(10, 36):
+        for lim_hi in range(20, 72):
+            if lim_lo >= lim_hi: 
+                continue
+
+            rpta_partition = partition.generate_partition_func(
+                a_fine, b_fine, c_fine, 16, 64, func=np.linalg.det, argopt=np.argmax)
+            N_coarse = len(rpta_partition)*2
+
+            fre, cond_coarse = reduce_run(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
+                         rpta_partition, threshold=0)
+            print("{},{},{},{:e},{:e}".format(
+                    mtx_id, lim_lo, lim_hi, fre, cond_coarse))
 
 
 # %% Test minimal condition of reduced system (condition for partition boundaries)
