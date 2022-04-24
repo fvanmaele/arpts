@@ -148,14 +148,15 @@ def rptapp_cond_part_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_til
             mtx_id, M, k_max_up, k_max_down, np.Inf, np.Inf, np.Inf, np.Inf, np.Inf))
 
 
-# TODO: take k_max_up, k_max_down, M as arguments
-def main_cond_part(mtx_id, N_fine, n_halo):
-    unif_low, unif_high = -1, 1
-    print("ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn")
-
+def main_setup(mtx_id, N_fine):
     np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_tridiag_system(
-        mtx_id, N_fine, unif_low, unif_high)
+    return matrix.generate_tridiag_system(
+        mtx_id, N_fine, unif_low=-1, unif_high=1)
+
+
+# TODO: take k_max_up, k_max_down, M as arguments
+def main_cond_part(a_fine, b_fine, c_fine, d_fine, x_fine, N_fine, n_halo):
+    print("ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn")
 
     # Take all combinations of partition size / k_max_up / k_max_down
     Ms = range(16, 65)
@@ -174,4 +175,6 @@ if __name__ == "__main__":
     N_fine = int(sys.argv[2])
     n_halo = int(sys.argv[3])
     
-    main_cond_part(mtx_id, N_fine, n_halo)
+    a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(mtx_id, N_fine)
+    main_cond_part(a_fine, b_fine, c_fine, d_fine, x_fine, 
+                   N_fine, n_halo)

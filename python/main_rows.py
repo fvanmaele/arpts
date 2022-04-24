@@ -10,12 +10,14 @@ import sys
 import matrix, partition, rpta
 
 
-def main_rows(mtx_id, N_fine, lim_lo, lim_hi):
-    # Generate fine system
+def main_setup(mtx_id, N_fine):
     np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_tridiag_system(
+    return matrix.generate_tridiag_system(
             mtx_id, N_fine, unif_low=-1, unif_high=1)
 
+
+def main_rows(a_fine, b_fine, c_fine, d_fine, x_fine, 
+              N_fine, lim_lo, lim_hi):
     rpta_partition = partition.generate_partition_func(
         a_fine, b_fine, c_fine, lim_lo, lim_hi, 
         func=np.linalg.cond, argopt=np.argmin)
@@ -34,4 +36,6 @@ if __name__ == "__main__":
     lim_lo = int(sys.argv[3]) # 10..36
     lim_hi = int(sys.argv[4]) # 20..72
 
-    main_rows(mtx_id, N_fine, lim_lo, lim_hi)
+    a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(mtx_id, N_fine)
+    main_rows(a_fine, b_fine, c_fine, d_fine, x_fine, N_fine, 
+              lim_lo, lim_hi)

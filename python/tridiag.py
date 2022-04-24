@@ -11,20 +11,6 @@ from sys import stderr
 TRIDIAG_VERBOSE=False
 
 
-def tridiag(a, b, c, sparse_result=0):
-    # Precondition checks
-    N = len(b)
-    assert(len(a) == N-1)
-    assert(len(c) == N-1)
-
-    if sparse_result == 1:
-        diagonals = [a, b, c]
-        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.diags.html
-        return sparse.diags(diagonals, [-1, 0, 1], shape=(N, N))
-    else:
-        return np.diag(a, -1) + np.diag(b) + np.diag(c, 1)
-
-
 def tridiag_cond_partition(mtx_fine, i_begin, i_end, n_halo):
     """
     Compute the condition number for a partition of a tridiagonal matrix. 

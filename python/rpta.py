@@ -217,6 +217,59 @@ def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, thres
     return x_fine
 
 
+# TODO: keep partial results (in eleminate_band) of coarse system and compute determinant 
+# The observation here is that consecutive rows in the coarse system are, for a bad partitioning,
+# nearly linearly independent. As such, we can optimize for this when constructing (rows of)
+# the coarse system.
+def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, threshold=0):
+    N = len(a_fine)
+    assert(part_min < part_max)
+    assert(part_min > 0)
+    assert(part_max < N-1)
+    
+    partition = []
+    partition_begin = 0 # Index of first row (upper boundary) 
+    
+    while partition_begin + part_max < N:
+        conds = []
+        for offset in range(part_min, part_max):
+            partition_end = min(partition_begin + offset, N-1)
+            
+            a_coarse_lower, b_coarse_lower, c_coarse_lower, d_coarse_lower = eliminate_band(
+                a_fine[partition_begin:partition_end],
+                b_fine[partition_begin:partition_end],
+                c_fine[partition_begin:partition_end],
+                d_fine[partition_begin:partition_end],
+                threshold)
+            c_coarse_upper, b_coarse_upper, a_coarse_upper, d_coarse_upper = eliminate_band(
+                list(reversed(c_fine[partition_begin:partition_end])),
+                list(reversed(b_fine[partition_begin:partition_end])),
+                list(reversed(a_fine[partition_begin:partition_end])),
+                list(reversed(d_fine[partition_begin:partition_end])),
+                threshold)
+            
+            # Criterion: maximum determinant
+            mtx = np.matrix([[b_coarse_upper, c_coarse_upper],
+                             [a_coarse_lower, b_coarse_lower]])
+            mtx_cond = np.linalg.cond(mtx)
+            conds.append(mtx_cond)
+            # print("{}, {}: |det| = {}".format(partition_begin, partition_end, mtx_det))
+
+        conds_argmin = np.argmin(conds)
+        # print("{}, {}: |det| (max) = {}".format(
+        #     partition_begin, partition_begin + part_min + dets_argmax, dets[dets_argmax]))
+        partition.append([partition_begin, partition_begin + part_min + conds_argmin])
+
+        # Go to next partition
+        partition_begin = min(partition_begin + part_min + conds_argmin, N)
+    
+    # Append last partition
+    if partition_begin < N:
+        partition.append([partition_begin, N])
+
+    return partition
+
+
 # TODO: support recursion?
 def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, partition, threshold=0):
     # Reduce to coarse system

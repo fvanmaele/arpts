@@ -1,0 +1,19 @@
+Random partition, minimize over FRE:
+
+ferdinand@hpz220:~/source/repos/arpts/python$ ./main_random.py 14 512 1000 32 100
+ID,n_sample,fre,cond_coarse
+14,95,2.126898e-07,7.345456e+09
+
+ferdinand@hpz220:~/source/repos/arpts/python$ ./main_random.py 14 512 5000 32 100
+ID,n_sample,fre,cond_coarse
+14,3764,1.557092e-08,1.698296e+12
+
+
+Random partition, minimize over condition:
+
+ferdinand@hpz220:~/source/repos/arpts/python$ ./main_random.py 14 512 1000 32 100
+14,335,2.343591e-06,9.656805e+08
+
+ferdinand@hpz220:~/source/repos/arpts/python$ ./main_random.py 14 512 5000 32 100
+14,2701,3.280850e-07,6.536660e+08
+

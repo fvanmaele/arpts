@@ -18,7 +18,9 @@ M = 32
 N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
 #mtx_id = 9
 
+
 # %% Sanity checks
+# TODO: keep results, reuse for other blocks
 for mtx_id in range(1, 21):
     print('Generating {} (N = {})'.format(mtx_id, N_fine))
     a, b, c = matrix.generate_tridiag(mtx_id, N_fine)
@@ -26,23 +28,33 @@ for mtx_id in range(1, 21):
     assert(len(b) == N_fine)
     assert(len(c) == N_fine)
 
+
 # %% Partition with fixed-size blocks
+# TODO: use generated linear system
+print('ID,M,fre,cond_coarse')
+
 for mtx_id in range(1, 21):
-    main_static(mtx_id, N_fine, M)
+    for M in range(16, 65):
+        fre, cond_coarse = main_static(mtx_id, N_fine, M)
 
-# %%
-static_partition = partition.generate_static_partition(N_fine, M)
-N_coarse = len(static_partition)*2
-print ('ID,M,fre,cond_coarse')
 
-for mtx_id in [14]:
-    np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
-        mtx_id, N_fine, unif_low=-1, unif_high=1)
-    
-    fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
-        static_partition, threshold=0)
-    print("{},{},{:e},{:e}".format(mtx_id, M, fre, cond_coarse))
+# %% Randomly generated blocks
+# Shows condition of coarse system and FRE may differ:
+# Minimum taken over FRE (part size 32..100, seed=0)
+# 1000 samples: 14,95,2.126898e-07,7.345456e+09
+# 5000 samples: 14,3764,1.557092e-08,1.698296e+12
+#
+# Minimum taken over condition (part size 32..100, seed=0)
+# 1000 samples: 14,335,2.343591e-06,9.656805e+08
+# 5000 samples: 14,2701,3.280850e-07,6.536660e+08
+print('ID,lim_lo,lim_hi,min_fre,cond_coarse')
+part_min, part_max = 32, 100
+n_samples = 200
+
+# TODO: set variable bounds (part_min, part_mix)
+# TODO: use generated linear system
+for mtx_id in range(1, 21):
+    fre, cond_coarse = main_random(mtx_id, N_fine, n_samples, part_min, part_max)
 
 
 # %% Test setting boundaries from original system
@@ -51,30 +63,9 @@ for mtx_id in [14]:
 print('ID,lim_lo,lim_hi,fre,cond_coarse')
 
 for mtx_id in range(1, 21):
-    # Generate fine system
-    np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
-            mtx_id, N_fine, unif_low=-1, unif_high=1)
-    errs, conds = [], []
-
     for lim_lo in range(10, 36):
         for lim_hi in range(20, 72):
-            if lim_lo >= lim_hi: 
-                continue
-
-            rpta_partition = partition.generate_partition_func(
-                a_fine, b_fine, c_fine, lim_lo, lim_hi, func=np.linalg.cond, argopt=np.argmin)
-            N_coarse = len(rpta_partition)*2
-
-            fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                         rpta_partition, threshold=0)
-            print("{},{},{},{:e},{:e}".format(
-                    mtx_id, lim_lo, lim_hi, fre, cond_coarse))
-            errs.append(fre)
-            conds.append(cond_coarse)
-
-    min_idx = np.argmin(errs)
-    print('{},{},{:e},{:e}'.format(mtx_id, min_idx, errs[min_idx], conds[min_idx]))
+            pass # TODO
 
 
 # %% Test minimal condition of reduced system (condition for partition boundaries)

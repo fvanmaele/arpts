@@ -35,8 +35,8 @@ def numpy_matrix_to_bands(mtx):
 
 def pad_bands(a, b, c):
     a_padded = np.concatenate(([0], a))
-    c_padded = np.concatenate((c, [0]))
     assert(len(b) == len(a_padded))
+    c_padded = np.concatenate((c, [0]))
     assert(len(b) == len(c_padded))
         
     # b is unmodified
