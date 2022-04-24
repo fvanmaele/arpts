@@ -90,8 +90,8 @@ def generate_partition(a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max_down):
 
 
 # XXX: "it must be true that `num_partitions_per_block` <= block dimension"
-# TODO: use reduce_and_solve (rpta_util)
-def rptapp_part_cond(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
+# TODO: use reduce_and_solve (rpta)
+def rptapp_cond_part(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
                      k_max_up=0, k_max_down=0, threshold=0, n_halo=1, level=0):
     # N_fine = len(a_fine)
     # N_coarse = (ceil(N_fine / M)) * 2
@@ -122,7 +122,7 @@ def rptapp_part_cond(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     if len(a_coarse) <= N_tilde:
         x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
     else:
-        x_coarse = rptapp_part_cond(a_coarse, b_coarse, c_coarse, d_coarse, N_tilde, M, 
+        x_coarse = rptapp_cond_part(a_coarse, b_coarse, c_coarse, d_coarse, N_tilde, M, 
                                     k_max_up, k_max_down, threshold, n_halo, level=level+1)    
 
     # Substitute into fine system
@@ -132,11 +132,11 @@ def rptapp_part_cond(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     return x_fine_rptapp, mtx_cond, mtx_cond_coarse, mtx_cond_partmax, mtx_cond_partmax_dyn
   
 
-# TODO: use reduce_and_solve (rpta_util)
-def rptapp_part_cond_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
+# TODO: use reduce_and_solve (rpta)
+def rptapp_cond_part_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
                  k_max_up, k_max_down, threshold, n_halo):
     try:
-        x_fine_rptapp, cond, cond_coarse, cond_partmax, cond_partmax_dyn = rptapp_part_cond(
+        x_fine_rptapp, cond, cond_coarse, cond_partmax, cond_partmax_dyn = rptapp_cond_part(
                 a_fine, b_fine, c_fine, d_fine, N_tilde, M, k_max_up, k_max_down, 0, n_halo)
         fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
         print("{},{},{},{},{},{},{},{},{}".format(
@@ -149,7 +149,7 @@ def rptapp_part_cond_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_til
 
 
 # TODO: take k_max_up, k_max_down, M as arguments
-def main_part_cond(mtx_id, N_fine, n_halo):
+def main_cond_part(mtx_id, N_fine, n_halo):
     unif_low, unif_high = -1, 1
     print("ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn")
 
@@ -166,7 +166,7 @@ def main_part_cond(mtx_id, N_fine, n_halo):
     
         for k_max_up in range(0, k_sup):
             for k_max_down in range(0, k_sup):
-                rptapp_part_cond_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
+                rptapp_cond_part_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
                                        k_max_up, k_max_down, 0, n_halo)
 
 if __name__ == "__main__":
@@ -174,4 +174,4 @@ if __name__ == "__main__":
     N_fine = int(sys.argv[2])
     n_halo = int(sys.argv[3])
     
-    main_part_cond(mtx_id, N_fine, n_halo)
+    main_cond_part(mtx_id, N_fine, n_halo)

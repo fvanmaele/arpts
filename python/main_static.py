@@ -7,7 +7,7 @@ Created on Sun Apr 24 11:52:41 2022
 """
 import numpy as np
 import sys
-import partition, matrix, rpta_util
+import partition, matrix, rpta
 
 
 def main_static(mtx_id, N_fine, M):

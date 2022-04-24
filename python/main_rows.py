@@ -7,7 +7,7 @@ Created on Sun Apr 24 11:48:07 2022
 """
 import numpy as np
 import sys
-import matrix, partition, rpta_util
+import matrix, partition, rpta
 
 
 def main_rows(mtx_id, N_fine, lim_lo, lim_hi):

@@ -7,7 +7,7 @@ Created on Sun Apr 24 11:52:41 2022
 """
 import numpy as np
 import sys
-import matrix, partition, rpta_util
+import matrix, partition, rpta
 
 
 def main_random(mtx_id, N_fine, n_samples, part_min, part_max):

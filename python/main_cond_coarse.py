@@ -7,7 +7,7 @@ Created on Sun Apr 24 11:47:59 2022
 """
 import numpy as np
 import sys
-import matrix, rpta, rpta_util
+import matrix, rpta
 
 
 # TODO: keep partial results (in eleminate_band) of coarse system and compute determinant 
@@ -63,7 +63,7 @@ def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, th
     return partition
 
 
-def main_coarse_cond(mtx_id, N_fine, lim_lo, lim_hi):
+def main_cond_coarse(mtx_id, N_fine, lim_lo, lim_hi):
     # Generate fine system\
     np.random.seed(0)
     a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
@@ -85,4 +85,4 @@ if __name__ == "__main__":
     lim_lo = int(sys.argv[3])
     lim_hi = int(sys.argv[4])
 
-    main_coarse_cond(mtx_id, N_fine, lim_lo, lim_hi)
+    main_cond_coarse(mtx_id, N_fine, lim_lo, lim_hi)
