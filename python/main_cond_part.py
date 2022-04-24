@@ -67,7 +67,7 @@ def generate_partition(a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max_down):
     N_coarse = (ceil(N_fine / M)) * 2
 
     # Compute condition of fine system (only for numerical experiments)
-    mtx_fine = rpta.bands_to_numpy_matrix(a_fine, b_fine, c_fine)
+    mtx_fine = matrix.bands_to_numpy_matrix(a_fine, b_fine, c_fine)
     mtx_cond = np.linalg.cond(mtx_fine)
     # print("Fine system, condition: {:e}".format(mtx_cond))
 
@@ -109,7 +109,7 @@ def rptapp_cond_part(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     # TODO: document input/output parameters of rptapp_reduce()
     rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
                        dyn_partition, threshold)
-    mtx_coarse = rpta.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+    mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
     mtx_cond_coarse = np.linalg.cond(mtx_coarse)
     
     # print("\nCoarse system (M = {}, k_max_up = {}, k_max_down = {}), condition: {:e}".format(
@@ -154,7 +154,7 @@ def main_cond_part(mtx_id, N_fine, n_halo):
     print("ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn")
 
     np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
+    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_tridiag_system(
         mtx_id, N_fine, unif_low, unif_high)
 
     # Take all combinations of partition size / k_max_up / k_max_down

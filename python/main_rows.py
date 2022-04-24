@@ -13,7 +13,7 @@ import matrix, partition, rpta
 def main_rows(mtx_id, N_fine, lim_lo, lim_hi):
     # Generate fine system
     np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
+    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_tridiag_system(
             mtx_id, N_fine, unif_low=-1, unif_high=1)
 
     rpta_partition = partition.generate_partition_func(

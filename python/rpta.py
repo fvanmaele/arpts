@@ -5,7 +5,7 @@
 
 import numpy as np
 import sys
-
+import matrix # bands_to_numpy_matrix
 
 def apply_threshold(x, y, eps):
     xt, yt = [0, 0]
@@ -17,36 +17,6 @@ def apply_threshold(x, y, eps):
     if abs(y) < eps:
         yt = 0
     return xt, yt
-
-
-def bands_to_numpy_matrix(a, b, c):
-    N = len(a)
-    mtx = np.zeros((N, N))
-    
-    for row_id in range(N):
-        mtx[row_id][row_id] = b[row_id]
-        if row_id > 0:
-            mtx[row_id][row_id - 1] = a[row_id]
-        if row_id < N - 1:
-            mtx[row_id][row_id + 1] = c[row_id]
-
-    return mtx
-
-
-def numpy_matrix_to_bands(mtx):
-    N = mtx.shape[0]
-    a = [0.0] * N
-    b = [0.0] * N
-    c = [0.0] * N
-    
-    for row_id in range(N):
-        b[row_id] = mtx[row_id][row_id]
-        if row_id > 0:
-            a[row_id] = mtx[row_id][row_id - 1]
-        if row_id < N - 1:
-            c[row_id] = mtx[row_id][row_id + 1]
-
-    return a, b, c
 
 
 # TODO: add visualization for elements below spike
@@ -257,7 +227,7 @@ def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, partition
     
     rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse,
                   partition, threshold=0)
-    mtx_coarse = bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+    mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
     
     # Plot coarse system
     # partition.plot_coarse_system(mtx_coarse, "Condition: {:e}".format(mtx_cond_coarse))

@@ -7,13 +7,13 @@ Created on Sun Apr 24 11:52:41 2022
 """
 import numpy as np
 import sys
-import partition, matrix, rpta
+import matrix, partition, rpta
 
 
 def main_static(mtx_id, N_fine, M):
     # Generate fine system
     np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
+    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_tridiag_system(
         mtx_id, N_fine, unif_low=-1, unif_high=1)
     
     rpta_partition = partition.generate_static_partition(N_fine, M)

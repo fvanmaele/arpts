@@ -7,42 +7,9 @@ Created on Sat Apr 23 20:18:23 2022
 """
 from math import ceil
 import numpy as np
-from sys import stderr
 
-import partition
-import matrix
-import rpta
-
-
-# %%
-def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, partition, threshold=0):
-    # Reduce to coarse system
-    a_coarse = np.zeros(N_coarse)
-    b_coarse = np.zeros(N_coarse)
-    c_coarse = np.zeros(N_coarse)
-    d_coarse = np.zeros(N_coarse)
-    
-    rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse,
-                       partition, threshold=0)
-    mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
-    
-    # Plot coarse system
-    # partition.plot_coarse_system(mtx_coarse, "Condition: {:e}".format(mtx_cond_coarse))
-
-    try:
-        x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
-        x_fine_rptapp = rpta.rptapp_substitute(
-                a_fine, b_fine, c_fine, d_fine, x_coarse, partition, threshold=0)
-
-        mtx_cond_coarse = np.linalg.cond(mtx_coarse)
-        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
-
-    except np.linalg.LinAlgError:
-        print("warning: Singular matrix detected", file=stderr)
-        fre, mtx_cond_coarse = np.Inf, np.Inf
-        
-    return fre, mtx_cond_coarse
-
+import partition, matrix, rpta
+import main_static, main_random, main_rows, main_cond_part, main_cond_coarse
 
 # %% Input parameters
 N_fine = 512
@@ -51,17 +18,29 @@ M = 32
 N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
 #mtx_id = 9
 
+# %% Sanity checks
+for mtx_id in range(1, 21):
+    print('Generating {} (N = {})'.format(mtx_id, N_fine))
+    a, b, c = matrix.generate_tridiag(mtx_id, N_fine)
+    assert(len(a) == N_fine)
+    assert(len(b) == N_fine)
+    assert(len(c) == N_fine)
+
 # %% Partition with fixed-size blocks
+for mtx_id in range(1, 21):
+    main_static(mtx_id, N_fine, M)
+
+# %%
 static_partition = partition.generate_static_partition(N_fine, M)
 N_coarse = len(static_partition)*2
 print ('ID,M,fre,cond_coarse')
 
-for mtx_id in range(1, 21):
+for mtx_id in [14]:
     np.random.seed(0)
     a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
         mtx_id, N_fine, unif_low=-1, unif_high=1)
     
-    fre, cond_coarse = reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
+    fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
         static_partition, threshold=0)
     print("{},{},{:e},{:e}".format(mtx_id, M, fre, cond_coarse))
 
@@ -71,8 +50,7 @@ for mtx_id in range(1, 21):
 # cond/argmin:  14,520,2.050581e-06,2.170328e+12
 print('ID,lim_lo,lim_hi,fre,cond_coarse')
 
-#for mtx_id in range(1, 21):
-for mtx_id in [14]:
+for mtx_id in range(1, 21):
     # Generate fine system
     np.random.seed(0)
     a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
@@ -88,7 +66,7 @@ for mtx_id in [14]:
                 a_fine, b_fine, c_fine, lim_lo, lim_hi, func=np.linalg.cond, argopt=np.argmin)
             N_coarse = len(rpta_partition)*2
 
-            fre, cond_coarse = reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
+            fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
                          rpta_partition, threshold=0)
             print("{},{},{},{:e},{:e}".format(
                     mtx_id, lim_lo, lim_hi, fre, cond_coarse))
@@ -120,7 +98,7 @@ for mtx_id in range(1, 21):
                     a_fine, b_fine, c_fine, d_fine, lim_lo, lim_hi, threshold=0)
             N_coarse = len(rpta_partition)*2
 
-            fre, cond_coarse = reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
+            fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
                          rpta_partition, threshold=0)
             print("{},{},{},{:e},{:e}".format(
                     mtx_id, lim_lo, lim_hi, fre, cond_coarse))
@@ -146,7 +124,7 @@ for mtx_id in range(1,21):
 #        print(rpta_partition)
         N_coarse = len(rpta_partition)*2
         
-        fre, cond_coarse = reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
+        fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
                                             rpta_partition, threshold=0)
         errs.append(fre)
         conds.append(cond_coarse)
