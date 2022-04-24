@@ -4,35 +4,6 @@ from scipy import sparse
 from numpy.linalg import inv
 from rogues import randsvd, kms, dorr, lesp # gallery() equivalent for Python
 
-def bands_to_numpy_matrix(a, b, c):
-    N = len(a)
-    mtx = np.zeros((N, N))
-    
-    for row_id in range(N):
-        mtx[row_id][row_id] = b[row_id]
-        if row_id > 0:
-            mtx[row_id][row_id - 1] = a[row_id]
-        if row_id < N - 1:
-            mtx[row_id][row_id + 1] = c[row_id]
-
-    return mtx
-
-
-def numpy_matrix_to_bands(mtx):
-    N = mtx.shape[0]
-    a = [0.0] * N
-    b = [0.0] * N
-    c = [0.0] * N
-    
-    for row_id in range(N):
-        b[row_id] = mtx[row_id][row_id]
-        if row_id > 0:
-            a[row_id] = mtx[row_id][row_id - 1]
-        if row_id < N - 1:
-            c[row_id] = mtx[row_id][row_id + 1]
-
-    return a, b, c
-
 
 def read_matrixmarket(filename):
     with open(filename) as f:
@@ -86,7 +57,6 @@ def generate_matrix(ID, N, unif_low=-1, unif_high=1):
     a_unif = np.random.uniform(unif_low, unif_high, N-1)
     c_unif = np.random.uniform(unif_low, unif_high, N-1)
 
-    # https://docs.python.org/3.10/whatsnew/3.10.html#pep-634-structural-pattern-matching
     if ID == 1:
         return tridiag(a_unif, b_unif, c_unif)
 
