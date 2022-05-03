@@ -13,7 +13,6 @@ from scipy.io import mmread
 
 
 def main_setup(mtx_id, N_fine):
-    np.random.seed(0)
     a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
         mmread("../mtx/{:02d}-{}".format(mtx_id, N_fine)))
 
@@ -43,7 +42,7 @@ def main_cond_coarse(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
 
     print("{},{},{},{:e},{:e}".format(mtx_id, lim_lo, lim_hi, fre, mtx_cond_coarse))
     # Return solution and coarse system for further inspection
-    return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse
+    return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
 
 
 if __name__ == "__main__":
@@ -52,7 +51,9 @@ if __name__ == "__main__":
     parser.add_argument("N_fine", type=int)
     parser.add_argument("lim_lo", type=int)
     parser.add_argument("lim_hi", type=int)
-    args = parser.parse_args()
+    parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
+    args = parser.parse_args()    
+    np.random.seed(args.seed)
 
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     main_cond_coarse(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 

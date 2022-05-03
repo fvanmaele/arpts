@@ -151,7 +151,6 @@ def rptapp_cond_part_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_til
 
 
 def main_setup(mtx_id, N_fine):
-    np.random.seed(0)
     a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
         mmread("../mtx/{:02d}-{}".format(mtx_id, N_fine)))
 
@@ -186,7 +185,9 @@ if __name__ == "__main__":
     parser.add_argument("mtx_id", type=int)
     parser.add_argument("N_fine", type=int)
     parser.add_argument("n_halo", type=int)
+    parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
     args = parser.parse_args()
+    np.random.seed(args.seed)
 
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     main_cond_part(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, args.n_halo)

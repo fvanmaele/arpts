@@ -67,8 +67,8 @@ def generate_partition_func(a_fine, b_fine, c_fine, part_min, part_max,
             f_values.append(abs(func(mtx)))
             # print("{}, {}: |det| = {}".format(
             #     i_begin, i_target, abs(np.linalg.det(mtx))))
-        
-        # Criterion: maximum determinant
+
+        # Criterion: maximum determinant (or minimum condition)
         f_values_argopt = argopt(f_values)
         # print("{}, {}: |det| (max) = {}".format(
         #     i_begin, i_begin + part_min + f_values_argopt, f_values[f_values_argopt]))
