@@ -5,11 +5,13 @@ Created on Sun Apr 24 11:47:47 2022
 
 @author: ferdinand
 """
-from math import ceil
+import argparse
 import numpy as np
 import sys
+import matrix, partition, rpta, tridiag
 
-import partition, matrix, rpta, tridiag
+from math import ceil
+from scipy.io import mmread
 
 
 # TODO: sufficient to compare condition locally when merge candidate is
@@ -150,12 +152,21 @@ def rptapp_cond_part_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_til
 
 def main_setup(mtx_id, N_fine):
     np.random.seed(0)
-    return matrix.generate_tridiag_system(
-        mtx_id, N_fine, unif_low=-1, unif_high=1)
+    a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
+        mmread("../mtx/{:02d}-{}".format(mtx_id, N_fine)))
+
+    # Solution
+    mtx = matrix.bands_to_numpy_matrix(a_fine, b_fine, c_fine)
+    x_fine = np.random.normal(3, 1, N_fine)
+
+    # Right-hand side
+    d_fine = np.matmul(mtx, x_fine)
+    
+    return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
 # TODO: take k_max_up, k_max_down, M as arguments
-def main_cond_part(a_fine, b_fine, c_fine, d_fine, x_fine, N_fine, n_halo):
+def main_cond_part(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_halo):
     print("ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn")
 
     # Take all combinations of partition size / k_max_up / k_max_down
@@ -171,10 +182,11 @@ def main_cond_part(a_fine, b_fine, c_fine, d_fine, x_fine, N_fine, n_halo):
                                        k_max_up, k_max_down, 0, n_halo)
 
 if __name__ == "__main__":
-    mtx_id = int(sys.argv[1])
-    N_fine = int(sys.argv[2])
-    n_halo = int(sys.argv[3])
-    
-    a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(mtx_id, N_fine)
-    main_cond_part(a_fine, b_fine, c_fine, d_fine, x_fine, 
-                   N_fine, n_halo)
+    parser = argparse.ArgumentParser(description='Retrieve arguments')
+    parser.add_argument("mtx_id", type=int)
+    parser.add_argument("N_fine", type=int)
+    parser.add_argument("n_halo", type=int)
+    args = parser.parse_args()
+
+    a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
+    main_cond_part(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, args.n_halo)
