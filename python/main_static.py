@@ -31,12 +31,17 @@ def main_static(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M=32):
     rpta_partition = partition.generate_static_partition(N_fine, M)
     N_coarse = len(rpta_partition)*2
 
-#    print('ID,M,fre,cond_coarse')
-    fre, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-        N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, rpta_partition, threshold=0)
-    
+    x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+        N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
+
+    if x_fine_rptapp is not None:
+        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+    else:
+        fre = np.Inf
+
     print("{},{},{:e},{:e}".format(mtx_id, M, fre, mtx_cond_coarse))
-    return fre, mtx_coarse, mtx_cond_coarse
+    # Return solution and coarse system for further inspection
+    return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse
 
 
 if __name__ == "__main__":

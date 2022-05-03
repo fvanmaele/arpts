@@ -271,7 +271,7 @@ def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, th
 
 
 # TODO: support recursion?
-def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, partition, threshold=0):
+def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, partition, threshold=0):
     # Reduce to coarse system
     a_coarse = np.zeros(N_coarse)
     b_coarse = np.zeros(N_coarse)
@@ -284,17 +284,15 @@ def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, partition
     
     # Plot coarse system
     # partition.plot_coarse_system(mtx_coarse, "Condition: {:e}".format(mtx_cond_coarse))
-
     try:
         x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
-        x_fine_rptapp = rptapp_substitute(
-                a_fine, b_fine, c_fine, d_fine, x_coarse, partition, threshold=0)
-
+        x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, 
+                                          x_coarse, partition, threshold=0)
         mtx_cond_coarse = np.linalg.cond(mtx_coarse)
-        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+        # fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
 
     except np.linalg.LinAlgError:
         print("warning: Singular matrix detected", file=sys.stderr)
-        fre, mtx_cond_coarse = np.Inf, np.Inf
+        x_fine_rptapp, mtx_coarse, mtx_cond_coarse = None, None, np.Inf
         
-    return fre, mtx_coarse, mtx_cond_coarse
+    return x_fine_rptapp, mtx_coarse, mtx_cond_coarse

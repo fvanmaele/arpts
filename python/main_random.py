@@ -31,17 +31,22 @@ def main_setup(mtx_id, N_fine):
 def main_random(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
                 n_samples, part_min, part_max, min_over='fre', seed=0):
     np.random.seed(seed)
-    fre_v, cond_v, mtx_v = [], [], []
+    x_v, fre_v, mtx_v, cond_v = [], [], [], []
 
     for n in range(0, n_samples):
-        rpta_partition = partition.generate_random_partition(
-                N_fine, part_min, part_max)
+        rpta_partition = partition.generate_random_partition(N_fine, part_min, part_max)
         N_coarse = len(rpta_partition)*2
-        
-        fre, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-            N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, rpta_partition, threshold=0)
+
+        x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+            N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
+
+        if x_fine_rptapp is not None:
+            fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+        else:
+            fre = np.Inf    
         # print("{},{},{:e},{:e}".format(mtx_id, n, fre, cond_coarse), file=sys.stderr)
 
+        x_v.append(x_fine_rptapp)
         fre_v.append(fre)
         mtx_v.append(mtx_coarse)
         cond_v.append(mtx_cond_coarse)
@@ -53,7 +58,8 @@ def main_random(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
         min_idx = np.argmin(cond_v)
 
     print('{},{},{:e},{:e}'.format(mtx_id, min_idx, fre_v[min_idx], cond_v[min_idx]))
-    return fre_v[min_idx], mtx_v[min_idx], cond_v[min_idx]
+    # Return solution and coarse system for further inspection
+    return x_v[min_idx], fre_v[min_idx], mtx_v[min_idx], cond_v[min_idx]
 
 
 if __name__ == "__main__":

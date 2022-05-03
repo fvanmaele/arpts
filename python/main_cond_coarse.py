@@ -33,11 +33,17 @@ def main_cond_coarse(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
                                                 lim_lo, lim_hi, threshold=0)
     N_coarse = len(rpta_partition)*2
 
-    fre, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-        N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, rpta_partition, threshold=0)
-    
-    print("{},{},{},{:e},{:e}".format(mtx_id, lim_lo, lim_hi, fre, cond_coarse))
-    return fre, mtx_coarse, mtx_cond_coarse
+    x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+        N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
+
+    if x_fine_rptapp is not None:
+        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+    else:
+        fre = np.Inf
+
+    print("{},{},{},{:e},{:e}".format(mtx_id, lim_lo, lim_hi, fre, mtx_cond_coarse))
+    # Return solution and coarse system for further inspection
+    return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse
 
 
 if __name__ == "__main__":
