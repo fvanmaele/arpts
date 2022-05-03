@@ -5,122 +5,60 @@ Created on Sat Apr 23 20:18:23 2022
 
 @author: ferdinand
 """
-from math import ceil
 import numpy as np
-
 import partition, matrix, rpta
-import main_static, main_random, main_rows, main_cond_part, main_cond_coarse
+
+from math import ceil
+from scipy.io import mmread
+from main_random import main_random
+
+
+# %% Generate linear system
+# TODO: take seed as argument for solution vector (fixed for generated matrix)
+def main_setup(mtx_id, N_fine):
+    np.random.seed(0)
+    a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
+        mmread("../mtx/{:02d}-{}".format(mtx_id, N_fine)))
+
+    # Solution
+    mtx = matrix.bands_to_numpy_matrix(a_fine, b_fine, c_fine)
+    x_fine = np.random.normal(3, 1, N_fine)
+
+    # Right-hand side
+    d_fine = np.matmul(mtx, x_fine)
+    
+    return a_fine, b_fine, c_fine, d_fine, x_fine
+
 
 # %% Input parameters
-N_fine = 512
-# M = 61
+N_fine = 2048
+# N_fine = 512
 M = 32
 N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
-#mtx_id = 9
-
-
-# %% Sanity checks
-# TODO: keep results, reuse for other blocks
-for mtx_id in range(1, 21):
-    print('Generating {} (N = {})'.format(mtx_id, N_fine))
-    a, b, c = matrix.generate_tridiag(mtx_id, N_fine)
-    assert(len(a) == N_fine)
-    assert(len(b) == N_fine)
-    assert(len(c) == N_fine)
-
-
-# %% Partition with fixed-size blocks
-# TODO: use generated linear system
-print('ID,M,fre,cond_coarse')
-
-for mtx_id in range(1, 21):
-    for M in range(16, 65):
-        fre, cond_coarse = main_static(mtx_id, N_fine, M)
+seed = 0
+part_min, part_max = 32, 100
 
 
 # %% Randomly generated blocks
-# Shows condition of coarse system and FRE may differ:
-# Minimum taken over FRE (part size 32..100, seed=0)
-# 1000 samples: 14,95,2.126898e-07,7.345456e+09
-# 5000 samples: 14,3764,1.557092e-08,1.698296e+12
-#
-# Minimum taken over condition (part size 32..100, seed=0)
-# 1000 samples: 14,335,2.343591e-06,9.656805e+08
-# 5000 samples: 14,2701,3.280850e-07,6.536660e+08
+# Shows condition of coarse system and FRE may differ (N=2048, n_samples=5000)
+# ID,lim_lo,lim_hi,min_fre,cond_coarse
+# 14,4374,1.460142e-04,3.880050e+16
+# 14,3075,1.787247e-02,6.600094e+12
+
 print('ID,lim_lo,lim_hi,min_fre,cond_coarse')
-part_min, part_max = 32, 100
-n_samples = 200
+mtx_id = 14
+n_samples = 5000
 
-# TODO: set variable bounds (part_min, part_mix)
-# TODO: use generated linear system
-for mtx_id in range(1, 21):
-    fre, cond_coarse = main_random(mtx_id, N_fine, n_samples, part_min, part_max)
+# Set up linear system
+a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(mtx_id, N_fine)
 
+# Minimize over FRE
+fre1, mtx_coarse1, mtx_cond_coarse1 = main_random(
+    mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_samples, part_min, part_max, 'fre', seed)
 
-# %% Test setting boundaries from original system
-# det/argmax:   14,520,2.050581e-06,2.170328e+12
-# cond/argmin:  14,520,2.050581e-06,2.170328e+12
-print('ID,lim_lo,lim_hi,fre,cond_coarse')
-
-for mtx_id in range(1, 21):
-    for lim_lo in range(10, 36):
-        for lim_hi in range(20, 72):
-            pass # TODO
+# Minimize over condition of the coarse system
+fre2, mtx_coarse2, mtx_cond_coarse2 = main_random(
+    mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_samples, part_min, part_max, 'cond', seed)
 
 
-# %% Test minimal condition of reduced system (condition for partition boundaries)
-# Empirically, a difference of 5-10 between lim_lo and lim_hi leads to a good
-# forward relative error. It also limits the performance impact, especially
-# when redundant computations are done.
-print('ID,lim_lo,lim_hi,fre,cond_coarse')
-
-for mtx_id in range(1, 21):
-    # Generate fine system\
-    np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
-            mtx_id, N_fine, unif_low=-1, unif_high=1)
-
-    for lim_lo in range(10, 36):
-        for lim_hi in range(20, 72):
-            if lim_lo >= lim_hi: 
-                continue
-
-            rpta_partition = rpta.rptapp_reduce_dynamic(
-                    a_fine, b_fine, c_fine, d_fine, lim_lo, lim_hi, threshold=0)
-            N_coarse = len(rpta_partition)*2
-
-            fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                         rpta_partition, threshold=0)
-            print("{},{},{},{:e},{:e}".format(
-                    mtx_id, lim_lo, lim_hi, fre, cond_coarse))
-
-
-# %% Test random sampling
-print('ID,n_sample,min_fre,cond_coarse')
-
-for mtx_id in range(1,21):
-    # Generate fine system
-    np.random.seed(0)
-    a_fine, b_fine, c_fine, d_fine, x_fine = matrix.generate_linear_system(
-            mtx_id, N_fine, unif_low=-1, unif_high=1)
-    
-#    n_samples = 50
-    n_samples = 100
-    errs, conds = [], []
-    part_min, part_max = 16, 64
-
-
-    for n in range(0, n_samples):
-        rpta_partition = partition.generate_random_partition(N_fine, part_min, part_max)
-#        print(rpta_partition)
-        N_coarse = len(rpta_partition)*2
-        
-        fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                                            rpta_partition, threshold=0)
-        errs.append(fre)
-        conds.append(cond_coarse)
-        
-#        print("{},{},{:e},{:e}".format(mtx_id, n, fre, cond_coarse), file=stderr)
-    
-    min_idx = np.argmin(errs)
-    print('{},{},{:e},{:e}'.format(mtx_id, min_idx, errs[min_idx], conds[min_idx]))
+# %% Check diagonal dominance

@@ -11,7 +11,7 @@ import matrix, partition, rpta
 
 from scipy.io import mmread
 
-
+# TODO: take seed as argument for solution vector (fixed for generated matrix)
 def main_setup(mtx_id, N_fine):
     np.random.seed(0)
     a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
@@ -27,28 +27,33 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
+# TODO: return coarse system instead of condition (for further study)
 def main_random(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
                 n_samples, part_min, part_max, min_over='fre', seed=0):
-    errs, conds = [], []
+    np.random.seed(seed)
+    fre_v, cond_v, mtx_v = [], [], []
 
     for n in range(0, n_samples):
         rpta_partition = partition.generate_random_partition(
                 N_fine, part_min, part_max)
         N_coarse = len(rpta_partition)*2
         
-        fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                rpta_partition, threshold=0)
-        errs.append(fre)
-        conds.append(cond_coarse)
+        fre, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+            N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, rpta_partition, threshold=0)
         # print("{},{},{:e},{:e}".format(mtx_id, n, fre, cond_coarse), file=sys.stderr)
-    
-    if min_over == "fre":
-        min_idx = np.argmin(errs)
-    elif min_over == "cond":
-        min_idx = np.argmin(conds)
 
-    print('{},{},{:e},{:e}'.format(mtx_id, min_idx, errs[min_idx], conds[min_idx]))
-    return errs[min_idx], conds[min_idx]
+        fre_v.append(fre)
+        mtx_v.append(mtx_coarse)
+        cond_v.append(mtx_cond_coarse)
+
+    if min_over == "fre":
+        min_idx = np.argmin(fre_v)
+
+    elif min_over == "cond":
+        min_idx = np.argmin(cond_v)
+
+    print('{},{},{:e},{:e}'.format(mtx_id, min_idx, fre_v[min_idx], cond_v[min_idx]))
+    return fre_v[min_idx], mtx_v[min_idx], cond_v[min_idx]
 
 
 if __name__ == "__main__":

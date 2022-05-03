@@ -29,15 +29,16 @@ def main_setup(mtx_id, N_fine):
 
 def main_cond_coarse(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
                      lim_lo, lim_hi):
-    rpta_partition = rpta.rptapp_reduce_dynamic(
-        a_fine, b_fine, c_fine, d_fine, lim_lo, lim_hi, threshold=0)
+    rpta_partition = rpta.rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, 
+                                                lim_lo, lim_hi, threshold=0)
     N_coarse = len(rpta_partition)*2
 
-    fre, cond_coarse = rpta.reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
-            rpta_partition, threshold=0)
-    print("{},{},{},{:e},{:e}".format(
-            mtx_id, lim_lo, lim_hi, fre, cond_coarse))
+    fre, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+        N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, rpta_partition, threshold=0)
     
+    print("{},{},{},{:e},{:e}".format(mtx_id, lim_lo, lim_hi, fre, cond_coarse))
+    return fre, mtx_coarse, mtx_cond_coarse
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Retrieve arguments')

@@ -29,16 +29,15 @@ def main_setup(mtx_id, N_fine):
 
 def main_rows(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
               lim_lo, lim_hi):
-    rpta_partition = partition.generate_partition_func(
-        a_fine, b_fine, c_fine, lim_lo, lim_hi, 
-        func=np.linalg.cond, argopt=np.argmin)
+    rpta_partition = partition.generate_partition_func(a_fine, b_fine, c_fine, lim_lo, lim_hi, 
+                                                       func=np.linalg.cond, argopt=np.argmin)
     N_coarse = len(rpta_partition)*2
     
-    fre, cond_coarse = rpta.reduce_and_solve(
-            N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, 
-            rpta_partition, threshold=0)
-    print("{},{},{},{:e},{:e}".format(
-            mtx_id, lim_lo, lim_hi, fre, cond_coarse))
+    fre, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+        N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, rpta_partition, threshold=0)
+
+    print("{},{},{},{:e},{:e}".format(mtx_id, lim_lo, lim_hi, fre, mtx_cond_coarse))
+    return fre, mtx_coarse, mtx_cond_coarse
     
 
 if __name__ == "__main__":

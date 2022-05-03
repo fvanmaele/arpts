@@ -297,4 +297,4 @@ def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, x_fine, partition
         print("warning: Singular matrix detected", file=sys.stderr)
         fre, mtx_cond_coarse = np.Inf, np.Inf
         
-    return fre, mtx_cond_coarse
+    return fre, mtx_coarse, mtx_cond_coarse
