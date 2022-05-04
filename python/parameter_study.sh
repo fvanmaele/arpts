@@ -6,7 +6,7 @@ N=512
 # hyperparameters (e.g.  main_cond_coarse.py has less dependence on
 # lim_lo, lim_hi than main_rows.py)
 
-# Static partition, M = 16..65
+# Static partition, M = 16..64
 { echo ID,N,M,fre,cond_coarse
   for id in $(seq 1 20); do
       ./main_static.py "$id" "$N" 16-64
@@ -42,6 +42,7 @@ N=512
 } | tee "output_$N_rows_det.csv"
 
 # Dynamic partition, minimize condition of individual blocks
+# TODO: check negative k_max_{up,down}
 for n_halo in $(seq 0 2); do
     { echo ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn
       for id in $(seq 1 20); do
