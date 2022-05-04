@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 N=512
 # TODO: (maybe in other script): save partition with minimal FRE, do
 # trials over 1000 sampled right-hand sides
