@@ -11,35 +11,35 @@ N=512
   for id in $(seq 1 20); do
       ./main_static.py "$id" "$N" 16-64
   done
-} | tee "output_$N_static.csv"
+} | tee "output_${N}_static.csv"
 
 # Generate coarse system of minimal condition during reduction step
 { echo ID,N,lim_lo,lim_hi,fre,cond_coarse
   for id in $(seq 1 20); do
       ./main_cond_coarse.py "$id" "$N" 16-40 22-72 --min-size=6
   done
-} | tee "output_$N_min_cond_coarse.csv"
+} | tee "output_${N}_min_cond_coarse.csv"
 
 # Generate random partition
 { echo ID,N,fre,cond_coarse
   for id in $(seq 1 20); do
       ./main_random.py "$id" "$N" 32 100
   done
-} | tee "output_$N_random.csv"
+} | tee "output_${N}_random.csv"
 
 # Check rows of linear system for linear independence [using determinant]
 { echo ID,N,lim_lo,lim_hi,fre,cond_coarse
   for id in $(seq 1 20); do
       ./main_rows.py "$id" "$N" 16-40 22-72 --min-size=6 cond
   done
-} | tee "output_$N_rows_cond.csv"
+} | tee "output_${N}_rows_cond.csv"
 
 # Check rows of linear system for linear independence [using condition]
 { echo ID,N,lim_lo,lim_hi,fre,cond_coarse
   for id in $(seq 1 20); do
       ./main_rows.py "$id" "$N" 16-40 22-72 --min-size=6 det
   done
-} | tee "output_$N_rows_det.csv"
+} | tee "output_${N}_rows_det.csv"
 
 # Dynamic partition, minimize condition of individual blocks
 # TODO: check negative k_max_{up,down}
@@ -48,5 +48,5 @@ for n_halo in $(seq 0 2); do
       for id in $(seq 1 20); do
           ./main_cond_part.py "$id" "$N" 16-64 0-5 0-5 "$n_halo"
       done
-    } | tee "output_$N_min_cond_part_halo$n_halo".csv
+    } | tee "output_${N}_min_cond_part_halo${n_halo}".csv
 done
