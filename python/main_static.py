@@ -37,19 +37,38 @@ def main_static(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M=32):
     else:
         fre = np.Inf
 
-    print("{},{},{:e},{:e}".format(mtx_id, M, fre, mtx_cond_coarse))
+    print("{},{},{},{:e},{:e}".format(mtx_id, N_fine, M, fre, mtx_cond_coarse))
     # Return solution and coarse system for further inspection
     return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
+
+
+def str_to_range(str, delim='-'):
+    assert(len(str) >= 1)
+    s_range = str.split(delim)
+    s_range = list(map(int, s_range))
+    
+    if len(s_range) == 2:
+        assert(s_range[1] > s_range[0])
+        s_range = range(s_range[0], s_range[1]+1)
+    elif len(s_range) != 1:
+        raise ValueError
+
+    return s_range
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Retrieve arguments')
     parser.add_argument("mtx_id", type=int)
     parser.add_argument("N_fine", type=int)
-    parser.add_argument("M", type=int)
+    parser.add_argument("M")
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
     args = parser.parse_args()
-    np.random.seed(args.seed)
+    np.random.seed(args.seed)        
 
+    # Range over M
+    M_range = str_to_range(args.M, '-')
+    # Generate linear system
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
-    main_static(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, args.M)
+    
+    for M in M_range:
+        main_static(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M)

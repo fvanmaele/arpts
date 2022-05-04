@@ -40,21 +40,46 @@ def main_cond_coarse(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
     else:
         fre = np.Inf
 
-    print("{},{},{},{:e},{:e}".format(mtx_id, lim_lo, lim_hi, fre, mtx_cond_coarse))
+    print("{},{},{},{},{:e},{:e}".format(mtx_id, N_fine, lim_lo, lim_hi, fre, mtx_cond_coarse))
     # Return solution and coarse system for further inspection
     return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
+
+
+def str_to_range(str, delim='-'):
+    assert(len(str) >= 1)
+    s_range = str.split(delim)
+    s_range = list(map(int, s_range))
+    
+    if len(s_range) == 2:
+        assert(s_range[1] > s_range[0])
+        s_range = range(s_range[0], s_range[1]+1)
+    elif len(s_range) != 1:
+        raise ValueError
+
+    return s_range
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Retrieve arguments')
     parser.add_argument("mtx_id", type=int)
     parser.add_argument("N_fine", type=int)
-    parser.add_argument("lim_lo", type=int)
-    parser.add_argument("lim_hi", type=int)
+    parser.add_argument("lim_lo")
+    parser.add_argument("lim_hi")
+    parser.add_argument("--min-size", type=int, default=8, help="minimal block size")
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
-    args = parser.parse_args()    
+    args = parser.parse_args()
     np.random.seed(args.seed)
 
+    # Range over lim_lo, lim_hi
+    lim_lo_range = str_to_range(args.lim_lo, '-')
+    lim_hi_range = str_to_range(args.lim_hi, '-')
+    
+    # Generate linear system
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
-    main_cond_coarse(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                     args.lim_lo, args.lim_hi)
+
+    for lim_lo in lim_lo_range:
+        for lim_hi in lim_hi_range:
+            if lim_hi - lim_lo < args.min_size:
+                continue
+            main_cond_coarse(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
+                             lim_lo, lim_hi)

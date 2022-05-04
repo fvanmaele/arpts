@@ -97,7 +97,7 @@ def rptapp_cond_part(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
                      k_max_up=0, k_max_down=0, threshold=0, n_halo=1, level=0):
     # N_fine = len(a_fine)
     # N_coarse = (ceil(N_fine / M)) * 2
-
+    conds = {}
     dyn_partition, mtx_cond, mtx_cond_partmax, mtx_cond_partmax_dyn = generate_partition(
         a_fine, b_fine, c_fine, M, n_halo, k_max_up, k_max_down)
     N_coarse = len(dyn_partition)*2
@@ -108,8 +108,8 @@ def rptapp_cond_part(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     c_coarse = np.zeros(N_coarse)
     d_coarse = np.zeros(N_coarse)
     
-    # TODO: document input/output parameters of rptapp_reduce()
-    rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
+    rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, 
+                       a_coarse, b_coarse, c_coarse, d_coarse, 
                        dyn_partition, threshold)
     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
     mtx_cond_coarse = np.linalg.cond(mtx_coarse)
@@ -125,30 +125,18 @@ def rptapp_cond_part(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
         x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
     else:
         x_coarse = rptapp_cond_part(a_coarse, b_coarse, c_coarse, d_coarse, N_tilde, M, 
-                                    k_max_up, k_max_down, threshold, n_halo, level=level+1)    
-
+                                    k_max_up, k_max_down, threshold, n_halo, level=level+1)
     # Substitute into fine system
     x_fine_rptapp = rpta.rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, 
                                            dyn_partition, threshold)
+    
     # Return additional values for parameter study
-    return x_fine_rptapp, mtx_cond, mtx_cond_coarse, mtx_cond_partmax, mtx_cond_partmax_dyn
+    conds['fine'] = mtx_cond
+    conds['coarse'] = mtx_cond_coarse
+    conds['partmax'] = mtx_cond_partmax
+    conds['partmax_dyn'] = mtx_cond_partmax_dyn
+    return x_fine_rptapp, mtx_coarse, conds, dyn_partition
   
-
-# TODO: use reduce_and_solve (rpta)
-def rptapp_cond_part_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
-                 k_max_up, k_max_down, threshold, n_halo):
-    try:
-        x_fine_rptapp, cond, cond_coarse, cond_partmax, cond_partmax_dyn = rptapp_cond_part(
-                a_fine, b_fine, c_fine, d_fine, N_tilde, M, k_max_up, k_max_down, 0, n_halo)
-        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
-        print("{},{},{},{},{},{},{},{},{}".format(
-            mtx_id, M, k_max_up, k_max_down, fre, cond, cond_coarse, cond_partmax, cond_partmax_dyn))
-
-    except np.linalg.LinAlgError:
-        print("warning: Singular matrix detected", file=sys.stderr)
-        print("{},{},{},{},{},{},{},{},{}".format(
-            mtx_id, M, k_max_up, k_max_down, np.Inf, np.Inf, np.Inf, np.Inf, np.Inf))
-
 
 def main_setup(mtx_id, N_fine):
     a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
@@ -164,30 +152,62 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
-# TODO: take k_max_up, k_max_down, M as arguments
-def main_cond_part(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_halo):
-    print("ID,M,k_max_up,k_max_down,fre,cond,cond_coarse,cond_partmax,cond_partmax_dyn")
+def main_cond_part(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
+                   N_tilde, M, k_max_up, k_max_down, n_halo, threshold=0):
+    try:
+        x_fine_rptapp, mtx_coarse, conds, dyn_partition = rptapp_cond_part(
+                a_fine, b_fine, c_fine, d_fine, 
+                N_tilde, M, k_max_up, k_max_down, threshold, n_halo)
+        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
 
-    # Take all combinations of partition size / k_max_up / k_max_down
-    Ms = range(16, 65)
-    k_sup = 6
-    for M in Ms:
-        #N_tilde = 64
-        N_tilde = (ceil(N_fine / M)) * 2
+        print("{},{},{},{},{},{},{},{},{},{}".format(mtx_id, N_fine, M, k_max_up, k_max_down, fre, 
+            conds['fine'], conds['coarse'], conds['partmax'], conds['partmax_dyn']))
+
+    except np.linalg.LinAlgError:
+        print("warning: Singular matrix detected", file=sys.stderr)
+        print("{},{},{},{},{},{},{},{},{},{}".format(
+            mtx_id, N_fine, M, k_max_up, k_max_down, np.Inf, np.Inf, np.Inf, np.Inf, np.Inf))
+
+    return x_fine_rptapp, fre, mtx_coarse, conds['coarse']
+
+
+def str_to_range(str, delim='-'):
+    assert(len(str) >= 1)
+    s_range = str.split(delim)
+    s_range = list(map(int, s_range))
     
-        for k_max_up in range(0, k_sup):
-            for k_max_down in range(0, k_sup):
-                rptapp_cond_part_print(a_fine, b_fine, c_fine, d_fine, x_fine, mtx_id, N_tilde, M, 
-                                       k_max_up, k_max_down, 0, n_halo)
+    if len(s_range) == 2:
+        assert(s_range[1] > s_range[0])
+        s_range = range(s_range[0], s_range[1]+1)
+    elif len(s_range) != 1:
+        raise ValueError
+
+    return s_range
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Retrieve arguments')
     parser.add_argument("mtx_id", type=int)
     parser.add_argument("N_fine", type=int)
+    parser.add_argument("M")
+    parser.add_argument("k_max_up")
+    parser.add_argument("k_max_down")
     parser.add_argument("n_halo", type=int)
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
     args = parser.parse_args()
     np.random.seed(args.seed)
-
+    
+    # Range over M, k_max_up, k_max_down
+    M_range = str_to_range(args.M)
+    k_up_range = str_to_range(args.k_max_up)
+    k_down_range = str_to_range(args.k_max_down)
+    
+    # Generate linear system
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
-    main_cond_part(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, args.n_halo)
+    N_tilde = (ceil(args.N_fine / args.M)) * 2 # Single reduction step
+
+    for M in M_range:
+        for k_max_up in k_up_range:
+            for k_max_down in k_down_range:
+                main_cond_part(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
+                               N_tilde, M, k_max_up, k_max_down, args.n_halo)

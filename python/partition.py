@@ -88,6 +88,7 @@ def generate_partition_func(a_fine, b_fine, c_fine, part_min, part_max,
     return partition
 
 
+# TODO: try some other distributions (e.g. binomial)
 def generate_random_partition(N, part_min, part_max):
     assert(part_min < part_max)
     assert(part_min > 0)

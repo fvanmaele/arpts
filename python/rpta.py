@@ -167,10 +167,6 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
         x[j] = (d[k] - b[k] * x[j + 1] - c[k] * x[j + 2]) / a[k]
 
     k = i[1]
-    # print(i)
-    # print(a)
-    # print(x)
-    # print("--")
 
     # FIXME: "None" k in last partition of size N % M
     if k is not None and abs(a[k]) < abs(c[0]):
@@ -270,7 +266,7 @@ def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, th
     return partition
 
 
-# TODO: support recursion?
+# TODO: support recursion
 def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, partition, threshold=0):
     # Reduce to coarse system
     a_coarse = np.zeros(N_coarse)

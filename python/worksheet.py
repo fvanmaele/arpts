@@ -16,6 +16,7 @@ from scipy.stats import describe
 from main_random import main_random
 from main_cond_coarse import main_cond_coarse
 from main_static import main_static
+from main_rows import main_rows
 
 # %% Input parameters
 mtx_id = 14
@@ -23,7 +24,7 @@ N_fine = 512
 M = 32
 N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
 part_min, part_max = 32, 100
-n_samples = 5000
+n_samples = 1000
 
 # %% Number generator
 seed = 0
@@ -34,30 +35,32 @@ a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
     mmread("../mtx/{:02d}-{}".format(mtx_id, N_fine)))
 mtx = matrix.bands_to_numpy_matrix(a_fine, b_fine, c_fine)
 
-x_fine = np.random.normal(3, 1, N_fine)  # Solution
+#x_fine = np.random.normal(3, 1, N_fine)
+x_fine = np.random.uniform(-1, 1, N_fine)
 d_fine = np.matmul(mtx, x_fine)  # Right-hand side
 
-# %% Randomly generated blocks
+# %% Randomly generated blocks - Minimize over FRE
 # Shows condition of coarse system and FRE may differ (N=2048, n_samples=5000)
 # ID,lim_lo,lim_hi,min_fre,cond_coarse
 # 14,4374,1.460142e-04,3.880050e+16
 # 14,3075,1.787247e-02,6.600094e+12
-print('ID,lim_lo,lim_hi,min_fre,cond_coarse')
-
-# Minimize over FRE
+print('ID,N,lim_lo,lim_hi,min_fre,cond_coarse')
 sol1, fre1, mtx_coarse1, mtx_cond_coarse1, part1 = main_random(
-    mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_samples, part_min, part_max, 'fre', seed)
+    mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_samples, part_min, part_max, 'fre')
 
-# Minimize over condition of the coarse system
+# %% Randomly generated blocks - Minimize over condition of the coarse system
+print('ID,N,lim_lo,lim_hi,fre,min_cond_coarse')
 sol2, fre2, mtx_coarse2, mtx_cond_coarse2, part2 = main_random(
-    mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_samples, part_min, part_max, 'cond', seed)
+    mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_samples, part_min, part_max, 'cond')
 
 # %% Blocks optimized on minimal condition of the coarse system
 # Note: results depend on the chosen limits
+print('ID,N,lim_lo,lim_hi,fre,cond_coarse')
 sol3, fre3, mtx_coarse3, mtx_cond_coarse3, part3 = main_cond_coarse(
     mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 32, 64)
 
 # %% Blocks of fixed size
+print('ID,N,M,fre,cond_coarse')
 sol4, fre4, mtx_coarse4, mtx_cond_coarse4, part4 = main_static(
     mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 32)
 
