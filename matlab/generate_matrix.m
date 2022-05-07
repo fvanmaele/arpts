@@ -92,13 +92,6 @@ end
 
 %% tridiag
 function A = tridiag(a, b, c, varargin)
-    % Default to dense matrix
-    sparse_result = 0;
-    if length(varargin) == 1
-        sparse_result = varargin{1};
-    end
-
-    % Precondition checks
     N = length(b);    
     if ~isvector(a) || ~isvector(b) || ~isvector(c)
         error("a, b, c must be vectors")
@@ -109,11 +102,6 @@ function A = tridiag(a, b, c, varargin)
     if length(c) ~= N-1
         error("c must have |a|-1 elements")
     end
-    
-    if sparse_result == 1
-        B = [[a; 0] b [0; c]];
-        A = spdiags(B, -1:1, N, N);
-    else
-        A = diag(a, -1) + diag(b) + diag(c, 1);
-    end
+
+    A = sparse(diag(a, -1) + diag(b) + diag(c, 1));
 end
