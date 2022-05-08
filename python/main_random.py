@@ -40,6 +40,7 @@ def main_random(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
     else:
         fre = np.Inf
         
+    # TODO: include generated partition in the output
     print('{},{},{:e},{:e}'.format(mtx_id, N_fine, fre, mtx_cond_coarse))
     return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
 

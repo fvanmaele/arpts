@@ -244,7 +244,7 @@ def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, th
                 list(reversed(d_fine[partition_begin:partition_end])),
                 threshold)
             
-            # Criterion: maximum determinant
+            # Criterion: minimum condition
             mtx = np.matrix([[b_coarse_upper, c_coarse_upper],
                              [a_coarse_lower, b_coarse_lower]])
             mtx_cond = np.linalg.cond(mtx)

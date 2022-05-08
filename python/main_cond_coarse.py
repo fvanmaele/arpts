@@ -42,6 +42,7 @@ def main_cond_coarse(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
 
     print("{},{},{},{},{:e},{:e}".format(mtx_id, N_fine, lim_lo, lim_hi, fre, mtx_cond_coarse))
     # Return solution and coarse system for further inspection
+    # TODO: loop in this function and return an iterator; and print in __name__ == "__main__"
     return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
 
 
