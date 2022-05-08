@@ -27,22 +27,21 @@ def main_setup(mtx_id, N_fine):
 
 
 def main_random(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
-                part_min, part_max):
-    rpta_partition = partition.generate_random_partition(N_fine, part_min, part_max)
-    N_coarse = len(rpta_partition)*2
+                n_samples, part_min, part_max):
+    for n in range(0, n_samples):
+        rpta_partition = partition.generate_random_partition(N_fine, part_min, part_max)
+        N_coarse = len(rpta_partition)*2
 
-    # Main computation step
-    x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-        N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
+        # Main computation step
+        x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+            N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
 
-    if x_fine_rptapp is not None:
-        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
-    else:
-        fre = np.Inf
-        
-    # TODO: include generated partition in the output
-    print('{},{},{:e},{:e}'.format(mtx_id, N_fine, fre, mtx_cond_coarse))
-    return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
+        if x_fine_rptapp is not None:
+            fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+        else:
+            fre = np.Inf
+
+        yield x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
 
 
 if __name__ == "__main__":
@@ -60,6 +59,7 @@ if __name__ == "__main__":
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     
     # Solve it with randomly chosen partitions
-    for n in range(0, args.n_samples):
-        main_random(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
-                    args.part_min, args.part_max)
+    for sample in main_random(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
+                              args.n_samples, args.part_min, args.part_max):
+        x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition = sample
+        print('{},{},{:e},{:e}'.format(args.mtx_id, args.N_fine, fre, mtx_cond_coarse))

@@ -12,6 +12,21 @@ import matrix, partition, rpta
 from scipy.io import mmread
 
 
+def str_to_range(str, delim='-'):
+    assert(len(str) >= 1)
+    s_range = str.split(delim)
+    s_range = list(map(int, s_range))
+    
+    if len(s_range) == 2:
+        assert(s_range[1] > s_range[0])
+        s_range = range(s_range[0], s_range[1]+1)
+    
+    elif len(s_range) != 1:
+        raise ValueError
+
+    return s_range
+
+
 def main_setup(mtx_id, N_fine):
     a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
         mmread("../mtx/{:02d}-{}".format(mtx_id, N_fine)))
@@ -27,36 +42,25 @@ def main_setup(mtx_id, N_fine):
 
 
 def main_rows(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-              lim_lo, lim_hi, func, argopt):
-    rpta_partition = partition.generate_partition_func(
-        a_fine, b_fine, c_fine, lim_lo, lim_hi, func=func, argopt=argopt)
-    N_coarse = len(rpta_partition)*2    
-    
-    x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-        N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
-    
-    if x_fine_rptapp is not None:
-        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
-    else:
-        fre = np.Inf
+              lim_lo_range, lim_hi_range, func, argopt, min_size):
+    for lim_lo in lim_lo_range:
+        for lim_hi in lim_hi_range:
+            if lim_hi - lim_lo < args.min_size:
+                continue
+            
+            rpta_partition = partition.generate_partition_func(
+                a_fine, b_fine, c_fine, lim_lo, lim_hi, func=func, argopt=argopt)
+            N_coarse = len(rpta_partition)*2    
+            
+            x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+                N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
+            
+            if x_fine_rptapp is not None:
+                fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+            else:
+                fre = np.Inf
 
-    print("{},{},{},{},{:e},{:e}".format(mtx_id, N_fine, lim_lo, lim_hi, fre, mtx_cond_coarse))
-    # Return solution and coarse system for further inspection
-    return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
-    
-
-def str_to_range(str, delim='-'):
-    assert(len(str) >= 1)
-    s_range = str.split(delim)
-    s_range = list(map(int, s_range))
-    
-    if len(s_range) == 2:
-        assert(s_range[1] > s_range[0])
-        s_range = range(s_range[0], s_range[1]+1)
-    elif len(s_range) != 1:
-        raise ValueError
-
-    return s_range
+            yield x_fine_rptapp, lim_lo, lim_hi, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
 
 
 if __name__ == "__main__":
@@ -88,9 +92,8 @@ if __name__ == "__main__":
     # Generate linear system    
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     
-    for lim_lo in lim_lo_range:
-        for lim_hi in lim_hi_range:
-            if lim_hi - lim_lo < args.min_size:
-                continue
-            main_rows(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
-                      lim_lo, lim_hi, func, argopt)
+    for sample in main_rows(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
+                            lim_lo_range, lim_hi_range, func, argopt, args.min_size):
+        _, lim_lo, lim_hi, fre, _, mtx_cond_coarse, _ = sample
+        print("{},{},{},{},{:e},{:e}".format(
+            args.mtx_id, args.N_fine, lim_lo, lim_hi, fre, mtx_cond_coarse))
