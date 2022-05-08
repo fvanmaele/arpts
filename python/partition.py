@@ -13,10 +13,11 @@ import matplotlib # __version__
 from packaging import version
 
 
-def generate_static_partition(N_fine, M):
+def generate_static_partition(N_fine, M, threshold=1):
     """
-    Generate a partition of the index set [0, 1, ..., N_fine-1] where each
-    partition has size M (if N divides M evenly), or the last partition has size N % M.
+    Generate a partition of the index set [0, 1, ..., N_fine-1] where each partition has size M
+    (if N divides M evenly), or the last partition has size N % M.  If N % M is below a certain 
+    threshold, then the last partition is merged to its upper neighbor.
 
     Parameters
     ----------
@@ -24,6 +25,8 @@ def generate_static_partition(N_fine, M):
         Size of the index set.
     M : int
         Size of the partition.
+    threshold : int
+        Minimum partition size.
 
     Returns
     -------
@@ -43,7 +46,11 @@ def generate_static_partition(N_fine, M):
         partition_idx.append([i*M, (i+1)*M])
     
     # Compute remaining partition of size N % M
-    if N_fine % M > 0:
+    N_mod = N_fine % M
+
+    if N_mod > 0 and N_mod <= threshold:
+        partition_idx[-1] = [i*M, N_fine]
+    elif N_mod > 0:
         partition_idx.append([n_partitions*M, N_fine])
 
     return partition_idx

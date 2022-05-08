@@ -23,7 +23,7 @@ mtx_id = 14
 N_fine = 512
 M = 32
 N_tilde = (ceil(N_fine / M)) * 2 # one reduction step
-part_min, part_max = 32, 100
+part_min, part_max = 32, 100  # TODO: use numbers from parameter study
 n_samples = 1000
 
 # %% Number generator

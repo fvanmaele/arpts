@@ -40,7 +40,7 @@ def main_random(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
     else:
         fre = np.Inf
         
-    print('{},{},{},{:e},{:e}'.format(mtx_id, N_fine, fre, mtx_cond_coarse))
+    print('{},{},{:e},{:e}'.format(mtx_id, N_fine, fre, mtx_cond_coarse))
     return x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
 
 
@@ -53,10 +53,6 @@ if __name__ == "__main__":
     parser.add_argument("part_max", type=int)
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
     args = parser.parse_args()
-
-    # TODO: only take minima if this option is specified, otherwise print all samples
-    if args.min_over != "fre" and args.min_over != "cond":
-        raise ValueError
     np.random.seed(args.seed)
 
     # Generate tridiagonal system
@@ -65,4 +61,4 @@ if __name__ == "__main__":
     # Solve it with randomly chosen partitions
     for n in range(0, args.n_samples):
         main_random(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
-                    args.part_min, args.part_max, args.min_over)
+                    args.part_min, args.part_max)

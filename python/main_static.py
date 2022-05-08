@@ -25,8 +25,8 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
-def main_static(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M=32):
-    rpta_partition = partition.generate_static_partition(N_fine, M)
+def main_static(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M=32, min_part=5):
+    rpta_partition = partition.generate_static_partition(N_fine, M, min_part)
     N_coarse = len(rpta_partition)*2
 
     x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
@@ -62,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("N_fine", type=int)
     parser.add_argument("M")
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
+    parser.add_argument("--min-size", type=int, default=5, help="minimum partition size")
     args = parser.parse_args()
     np.random.seed(args.seed)        
 
@@ -71,4 +72,4 @@ if __name__ == "__main__":
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     
     for M in M_range:
-        main_static(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M)
+        main_static(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M, args.min_size)
