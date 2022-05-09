@@ -45,7 +45,7 @@ def main_cond_coarse(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
                      lim_lo_range, lim_hi_range, min_size):
     for lim_lo in lim_lo_range:
         for lim_hi in lim_hi_range:
-            if lim_hi - lim_lo < args.min_size:
+            if lim_hi - lim_lo < min_size:
                 continue
 
             rpta_partition = rpta.rptapp_reduce_dynamic(
