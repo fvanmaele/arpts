@@ -41,7 +41,7 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
-def main_rows(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
+def main_rows(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
               lim_lo_range, lim_hi_range, func, argopt, min_size):
     for lim_lo in lim_lo_range:
         for lim_hi in lim_hi_range:
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     # Generate linear system    
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     
-    for sample in main_rows(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
+    for sample in main_rows(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
                             lim_lo_range, lim_hi_range, func, argopt, args.min_size):
         _, lim_lo, lim_hi, fre, _, mtx_cond_coarse, _ = sample
         print("{},{},{},{},{:e},{:e}".format(

@@ -26,7 +26,7 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
-def main_random(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
+def main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
                 n_samples, part_min, part_max):
     for n in range(0, n_samples):
         rpta_partition = partition.generate_random_partition(N_fine, part_min, part_max)
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     
     # Solve it with randomly chosen partitions
-    for sample in main_random(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
+    for sample in main_random(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
                               args.n_samples, args.part_min, args.part_max):
         x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition = sample
         print('{},{},{:e},{:e}'.format(args.mtx_id, args.N_fine, fre, mtx_cond_coarse))

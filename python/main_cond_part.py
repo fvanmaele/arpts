@@ -157,7 +157,7 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
-def main_cond_part(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
+def main_cond_part(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
                    M_range, k_up_range, k_down_range, n_halo, threshold=0):
     for M in M_range:
         N_tilde = (ceil(args.N_fine / M)) * 2 # Single reduction step
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     # Generate linear system
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
 
-    for sample in main_cond_part(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
+    for sample in main_cond_part(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
                                  M_range, k_up_range, k_down_range, args.n_halo):
         _, M, k_max_up, k_max_down, fre, _, cond_fine, cond_coarse, cond_partmax, cond_partmax_dyn, _ = sample            
 

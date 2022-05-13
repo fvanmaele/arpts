@@ -41,7 +41,7 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
-def main_static(mtx_id, N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M_range, min_part):
+def main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M_range, min_part):
     for M in M_range:
         rpta_partition = partition.generate_static_partition(N_fine, M, min_part)
         N_coarse = len(rpta_partition)*2
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # Generate linear system
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     
-    for sample in main_static(args.mtx_id, args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
+    for sample in main_static(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
                               M_range, args.min_size):
         _, M, fre, _, mtx_cond_coarse, _ = sample
         print("{},{},{},{:e},{:e}".format(args.mtx_id, args.N_fine, M, fre, mtx_cond_coarse))
