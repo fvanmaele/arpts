@@ -2,8 +2,6 @@
 set -eo pipefail
 #N=2048
 N=512
-# TODO: (maybe in other script): save partition with minimal FRE, do
-# trials over 1000 sampled right-hand sides
 # TODO: do some statistical analysis on dependence of FRE on
 # hyperparameters (e.g.  main_cond_coarse.py has less dependence on
 # lim_lo, lim_hi than main_rows.py)

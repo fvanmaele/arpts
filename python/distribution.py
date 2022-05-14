@@ -47,21 +47,18 @@ def generate_min_partition(generator, extractor):
     return min_fre, min_fre_part, min_cond, min_cond_part
 
 
-def generate_test_case(test_case, a_fine, b_fine, c_fine, d_fine, x_fine, M=32):
+def generate_test_case(test_case, a_fine, b_fine, c_fine, d_fine, x_fine, *main_args):
     N_fine = len(a_fine)
     if test_case == 'random':
-        generator = main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                                1000, 32, 100)
+        generator = main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, *main_args)
         extractor = lambda sample : sample[0:5]
     
     elif test_case == 'reduce':
-        generator = main_cond_coarse(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                                     list(range(16,41)), list(range(22,73)), 6)
+        generator = main_cond_coarse(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, *main_args)
         extractor = lambda sample : [sample[0]] + list(sample[3:])
     
     elif test_case == 'static':
-        generator = main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                                list(range(16,65)), 6)
+        generator = main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, *main_args)
         extractor = lambda sample : [sample[0]] + list(sample[2:])
 
     else:
@@ -70,13 +67,14 @@ def generate_test_case(test_case, a_fine, b_fine, c_fine, d_fine, x_fine, M=32):
     return generate_min_partition(generator, extractor)    
 
 
-def run_trials(mtx, a_fine, b_fine, c_fine, part, label, mean=3, stddev=1, n_trials=5000):
+# TODO: allow to choose the distribution of the generated solutions
+def run_trials(mtx, a_fine, b_fine, c_fine, part, label, gen_samples, n_trials=5000):
     trials = [None]*n_trials
     N_fine = len(a_fine)
     N_coarse = len(part)*2
 
     for k in range(0, n_trials):
-        x_fine_new = np.random.normal(mean, stddev, N_fine)
+        x_fine_new = gen_samples(N_fine)
         d_fine_new = np.matmul(mtx, x_fine_new)
         
         # Solve linear system with new right-hand side
@@ -91,7 +89,7 @@ def run_trials(mtx, a_fine, b_fine, c_fine, part, label, mean=3, stddev=1, n_tri
 
 
 def ecdf(a):
-    x, counts = np.unique(a, return_counts=True)
+    x, counts = np.unique(a, return_counts=True) # returns sorted unique elements
     cumsum = np.cumsum(counts)
 
     return x, cumsum / cumsum[-1]
@@ -120,48 +118,71 @@ def plot_ecdf(v, names, filename=None):
 # TODO: include additional arguments for generate_test_case()
 def main():
     parser = argparse.ArgumentParser(description='Retrieve arguments')
+    # positional arguments
     parser.add_argument("mtx_id", type=int)
     parser.add_argument("N_fine", type=int)
-    parser.add_argument("M", type=int)
+    parser.add_argument("M", type=int, help="fixed block size for comparison purposes")
+    # global options
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
     parser.add_argument("--n-trials", type=int, default=5000, help="amount of trials for generated partition")
-    parser.add_argument("--mean", type=float, default=3, help="mean of generated solutions (normal distribution)")
-    parser.add_argument("--stddev", type=float, default=1, help="standard deviation of generated solutions (normal distribution")
+    parser.add_argument("--mean", type=float, default=3, help="mean of generated solutions (--distribution normal)")
+    parser.add_argument("--stddev", type=float, default=1, help="standard deviation of generated solutions (--distribution normal)")
+    parser.add_argument("--low", type=float, default=0, help="lower boundary of generated solutions (--distribution uniform)")
+    parser.add_argument("--high", type=float, default=1, help="upper boundary of generated solutions (--distribution uniform)")
+    parser.add_argument("--distribution", type=str, default='normal', help="distribution of generated solutions ('normal' or 'uniform')")
+    # options for random partition
+    parser.add_argument("--rand-n-samples", type=int, default=1000, help="amount of samples for randomly generated partitions")
+    parser.add_argument("--rand-min-part", type=int, default=32, help="minimal size of randomly generated partitions")
+    parser.add_argument("--rand-max-part", type=int, default=100, help="maximal size of randomly generated partitions")
+    # options for static partition
+    parser.add_argument("--static-M-min", type=int, default=16, help="minimal block size for fixed partitions")
+    parser.add_argument("--static-M-max", type=int, default=64, help="maximal block size for fixed partitions")
+    # TODO: options for partition generated during reduction, options for generated system
+
     args = parser.parse_args()
-    np.random.seed(args.seed)   
+    np.random.seed(args.seed)
     plt.rcParams["figure.figsize"] = (12,8)
     
+    # Define distribution of generated solutions
+    if args.distribution == "normal":
+        gen_samples = lambda N : np.random.normal(args.mean, args.stddev, N)
+    elif args.distribution == "uniform":
+        gen_samples = lambda N : np.random.uniform(args.low, args.high, N)
+    else:
+        raise ValueError("invalid distribution specified")
+
     # Set up linear system
     a_fine, b_fine, c_fine, x_fine, d_fine, mtx = setup(args.mtx_id, args.N_fine, args.mean, args.stddev)
 
+    # Comparison to static partition with fixed M
+    static = [S for S in main_static(
+        len(a_fine), a_fine, b_fine, c_fine, d_fine, x_fine, [args.M], 6)]
+    static_fre, static_part = static[0][2], static[0][5]
+
     # Generate dynamic partition from one sample
     min_fre_rand, min_fre_rand_part, min_cond_rand, min_cond_rand_part = generate_test_case(
-        'random', a_fine, b_fine, c_fine, d_fine, x_fine)
+        'random', a_fine, b_fine, c_fine, d_fine, x_fine, args.rand_n_samples, args.rand_min_part, args.rand_max_part)
     min_fre_reduce, min_fre_reduce_part, min_cond_reduce, min_cond_reduce_part = generate_test_case(
-        'reduce', a_fine, b_fine, c_fine, d_fine, x_fine)
+        'reduce', a_fine, b_fine, c_fine, d_fine, x_fine, list(range(16,41)), list(range(22,73)), 6)
     min_fre_static, min_fre_static_part, min_cond_static, min_cond_static_part = generate_test_case(
-        'static', a_fine, b_fine, c_fine, d_fine, x_fine)
-    
-    # Comparison to static partition with fixed M
-    # FIXME: ValueError: not enough values to unpack (expected 6, got 1)
-    _, _, static_fre, _, _, static_part = main_static(
-        len(a_fine), a_fine, b_fine, c_fine, d_fine, x_fine, [args.M], 6)
+        'static', a_fine, b_fine, c_fine, d_fine, x_fine, list(range(args.static_M_min,args.static_M_max+1)), 6)
 
     # Verify generated partition on a set of samples (x, from same distribution)
-    trials_rand_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_rand_part, "random + fre", args.mean, args.stddev, args.n_trials)
-    trials_rand_cond = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_cond_rand_part, "random + cond", args.mean, args.stddev, args.n_trials)
-    trials_reduce_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_reduce_part, "reduce + fre", args.mean, args.stddev, args.n_trials)
-    trials_reduce_cond = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_cond_reduce_part, "reduce + cond", args.mean, args.stddev, args.n_trials)
-    trials_static_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_static_part, "static + fre", args.mean, args.stddev, args.n_trials)
-    trials_static_cond = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_cond_static_part, "static + cond", args.mean, args.stddev, args.n_trials)
     trials_static = run_trials(
-        mtx, a_fine, b_fine, c_fine, static_part, "static", args.mean, args.stddev, args.n_trials)
+        mtx, a_fine, b_fine, c_fine, static_part, "static", gen_samples, args.n_trials)
+    trials_rand_fre = run_trials(
+        mtx, a_fine, b_fine, c_fine, min_fre_rand_part, "random + fre", gen_samples, args.n_trials)
+    trials_rand_cond = run_trials(
+        mtx, a_fine, b_fine, c_fine, min_cond_rand_part, "random + cond", gen_samples, args.n_trials)
+    trials_reduce_fre = run_trials(
+        mtx, a_fine, b_fine, c_fine, min_fre_reduce_part, "reduce + fre", gen_samples, args.n_trials)
+    trials_reduce_cond = run_trials(
+        mtx, a_fine, b_fine, c_fine, min_cond_reduce_part, "reduce + cond", gen_samples, args.n_trials)
+    trials_static_fre = run_trials(
+        mtx, a_fine, b_fine, c_fine, min_fre_static_part, "static + fre", gen_samples, args.n_trials)
+    trials_static_cond = run_trials(
+        mtx, a_fine, b_fine, c_fine, min_cond_static_part, "static + cond", gen_samples, args.n_trials)
+
 
     # Plot empirical cumulative distribution
     trials_v = [trials_rand_fre, trials_rand_cond, trials_reduce_fre, trials_reduce_cond, 
