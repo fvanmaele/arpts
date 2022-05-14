@@ -9,6 +9,7 @@ import argparse
 import numpy as np
 import matrix, rpta
 import matplotlib.pyplot as plt
+import json
 
 # from math import ceil
 from sys import stderr
@@ -96,15 +97,14 @@ def ecdf(a):
     return x, cumsum / cumsum[-1]
 
 
-def plot_ecdf(v, names, filename=None):
-    assert(len(v) == len(names))
+def plot_ecdf(d, filename=None):
     plt.clf()
 
-    for i, a in enumerate(v):
+    for label, a in d.items():
         x, y = ecdf(a)
         x = np.insert(x, 0, x[0])
         y = np.insert(y, 0, 0.)
-        plt.plot(x, y, drawstyle='steps-post', label=names[i])
+        plt.plot(x, y, drawstyle='steps-post', label=label)
 
     plt.legend()
     plt.grid(True)
@@ -201,12 +201,24 @@ def main():
         mtx, a_fine, b_fine, c_fine, min_cond_static_part, "static + cond", gen_samples, args.n_trials)
 
     # Plot empirical cumulative distribution
-    trials_v = [trials_rand_fre, trials_rand_cond, trials_reduce_fre, trials_reduce_cond, 
-                trials_static_fre, trials_static_cond, trials_static]
-    trials_n = ['rand_min_fre', 'rand_min_cond', 'reduce_min_fre', 'reduce_min_cond', 
-                'static_min_fre', 'static_min_cond', 'static_M{:2d}'.format(args.M)]
-    filename = "ecdf_{:02d}".format(args.mtx_id)
-    plot_ecdf(trials_v, trials_n, filename)
+    trials_d = {
+        'rand_min_fre'    : trials_rand_fre,
+        'rand_min_cond'   : trials_rand_cond,
+        'reduce_min_fre'  : trials_reduce_fre,
+        'reduce_min_cond' : trials_reduce_cond,
+        'static_min_fre'  : trials_static_fre,
+        'static_min_cond' : trials_static_cond,
+        'static_M32'      : trials_static
+    }
+
+    # Use a common suffix which includes the distribution and matrix ID
+    f_suffix = "{:02d}_{}_sol-{}_gen-{}".format(
+        args.mtx_id, args.N_fine, args.distribution[0:4], args.distribution_setup[0:4])
+    plot_ecdf(trials_d, "ecdf_{}".format(f_suffix))
+
+    # Write trial data to file (JSON) for later use
+    with open('trials_{}.json'.format(f_suffix), 'w') as outfile:
+        json.dump(trials_d, outfile)
 
 
 if __name__ == "__main__":
