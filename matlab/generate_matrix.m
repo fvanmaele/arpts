@@ -3,7 +3,10 @@ function A = generate_matrix(ID, N)
     b_unif = unifrnd(-1, 1, N, 1);
     a_unif = unifrnd(-1, 1, N-1, 1);
     c_unif = unifrnd(-1, 1, N-1, 1);
-    
+    a_norm = normrnd(0, 1, N-1, 1);
+    b_norm = normrnd(0, 1, N-1, 1);
+    c_norm = normrnd(0, 1, N-1, 1);
+
     switch ID
         case 1
             A = tridiag(a_unif, b_unif, c_unif);
@@ -14,7 +17,7 @@ function A = generate_matrix(ID, N)
         
         case 3
             A = gallery('lesp', N);
-        
+
         case 4
             a = a_unif;
             % XXX: use ceil() for 1-indexing?floor
@@ -85,6 +88,27 @@ function A = generate_matrix(ID, N)
         case 20
             A = tridiag(-ones(N-1, 1), 4*ones(N, 1), c_unif);
         
+        % additional matrices
+        case 21 % 14b
+            b = 1e-8*ones(N, 1);
+            A = tridiag(a_norm, b, c_norm);
+        
+        case 22 % 14c
+            b = 1e-8*ones(N, 1);
+            A = tridiag(a_unif, b, c_norm);
+        
+        case 23 % 14d
+            b = 1e-8*ones(N, 1);
+            A = tridiag(a_norm, b, c_unif);
+
+        case 24 % 14e - symmetric
+            b = 1e-8*ones(N, 1);
+            A = tridiag(a_unif, b, a_unif);
+
+        case 25 % 14f - symmetric
+            b = 1e-8*ones(N, 1);
+            A = tridiag(a_norm, b, a_norm);
+
         otherwise
             error('invalid ID specified')
     end
