@@ -38,5 +38,22 @@ x_fine = np.random.normal(3, 1, N_fine)
 d_fine = np.matmul(A, x_fine)
 
 # %% Generate coarse system
-for sample in main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, [33], min_part=6):
-    x_fine_rptapp, M, fre, mtx_coarse, mtx_cond_coarse, rpta_partition = sample
+#for sample in main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, [32], min_part=6):
+#    x_fine_rptapp, M, fre, mtx_coarse, mtx_cond_coarse, rpta_partition = sample
+
+# %%
+A33 = A[0:33, 0:33]
+a33, b33, c33 = matrix.numpy_matrix_to_bands(A33)
+d33 = d_fine[0:33]
+
+a2_33, b2_33, c2_33, d2_33 = [np.zeros(2)]*4
+rpta.rptapp_reduce(a33, b33, c33, d33, a2_33, b2_33, c2_33, d2_33, [[0, 33]])
+
+# %%
+#A32 = A[0:32, 0:32]
+#a32, b32, c32 = matrix.numpy_matrix_to_bands(A32)
+#d32 = d_fine[0:32]
+#
+#a2_32, b2_32, c2_32, d2_32 = [np.zeros(2)]*4
+#rpta.rptapp_reduce(a32, b32, c32, d32, a2_32, b2_32, c2_32, d2_32, [[0, 32]])
+#

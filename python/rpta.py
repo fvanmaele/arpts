@@ -43,7 +43,11 @@ def eliminate_band(a, b, c, d, threshold=0):
 
         apply_threshold(s_p[1], s_c[1], threshold)
 
-        if abs(s_c[1]) > abs(s_p[1]):
+        # Scaled partial pivoting
+        m_p = max([abs(s_p[0]), abs(s_p[1]), abs(s_p[2])])
+        m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
+
+        if abs(s_c[1])*m_p > abs(s_p[1])*m_c:
             r_c = (-1.0) * s_p[1] / s_c[1]
             r_p = 1.0
         else:
@@ -134,7 +138,11 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
         s_c[4] = d[j]
         apply_threshold(s_p[1], s_c[1], threshold)
 
-        if abs(s_c[1]) > abs(s_p[1]):
+        # Scaled partial pivoting
+        m_p = max([abs(s_p[1]), abs(s_p[2])])
+        m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
+
+        if abs(s_c[1])*m_p > abs(s_p[1])*m_c:
             i[j - 1] = j
             r_c = (-1.0) * s_p[1] / s_c[1]
             r_p = 1.0
