@@ -11,7 +11,6 @@ import matrix, partition, rpta
 
 from scipy.io import mmread
 
-
 def main_setup(mtx_id, N_fine):
     a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(
         mmread("../mtx/{:02d}-{}".format(mtx_id, N_fine)))

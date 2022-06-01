@@ -7,6 +7,10 @@ import numpy as np
 import sys
 import matrix # bands_to_numpy_matrix
 
+PIVOTING="scaled_partial"
+#PIVOTING="partial"
+#PIVOTING="none"
+
 def apply_threshold(x, y, eps):
     xt, yt = [0, 0]
     if eps == 0:
@@ -44,13 +48,22 @@ def eliminate_band(a, b, c, d, threshold=0):
         apply_threshold(s_p[1], s_c[1], threshold)
 
         # Scaled partial pivoting
-        m_p = max([abs(s_p[0]), abs(s_p[1]), abs(s_p[2])])
-        m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
+        if PIVOTING == "scaled_partial":
+            m_p = max([abs(s_p[0]), abs(s_p[1]), abs(s_p[2])])
+            m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
+        elif PIVOTING == "partial":
+            m_p = 1.0
+            m_c = 1.0
+        elif PIVOTING == "none":
+            m_p = 0.0
+            m_c = 0.0
 
         if abs(s_c[1])*m_p > abs(s_p[1])*m_c:
+            # print(s_c[1])
             r_c = (-1.0) * s_p[1] / s_c[1]
             r_p = 1.0
         else:
+            # print(s_p[1])
             r_c = 1.0
             r_p = (-1.0) * s_c[1] / s_p[1]
 
@@ -139,8 +152,15 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
         apply_threshold(s_p[1], s_c[1], threshold)
 
         # Scaled partial pivoting
-        m_p = max([abs(s_p[1]), abs(s_p[2])])
-        m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
+        if PIVOTING == "scaled_partial":
+            m_p = max([abs(s_p[1]), abs(s_p[2])])
+            m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
+        elif PIVOTING == "partial":
+            m_p = 1.0
+            m_c = 1.0
+        elif PIVOTING == "none":
+            m_p = 0.0
+            m_c = 0.0
 
         if abs(s_c[1])*m_p > abs(s_p[1])*m_c:
             i[j - 1] = j
