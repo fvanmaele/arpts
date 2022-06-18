@@ -19,7 +19,7 @@ def apply_threshold(x, y, eps):
     return xt, yt
 
 
-# TODO: add visualization for elements below spike
+# TODO: add visualization
 def eliminate_band(a, b, c, d, threshold=0):
     M = len(a)
     assert(M > 1) # band should at least have one element
