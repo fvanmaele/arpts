@@ -26,9 +26,20 @@ def main_setup(mtx_id, N_fine):
 
 
 def main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
-                n_samples, part_min, part_max):
+                n_samples, distribution, part_min, part_max, part_mean=None, part_sd=None):
+    if distribution == 'normal':
+        assert(part_mean is not None)
+        assert(part_sd is not None)
+        gen = lambda N, pmin, pmax, pmean, psd : partition.generate_random_partition_normal(N, pmin, pmax, pmean, psd)
+    
+    elif distribution == 'uniform':
+        gen = lambda N, pmin, pmax, pmean, psd : partition.generate_random_partition(N, pmin, pmax)
+
+    else:
+        raise ValueError("--distribution must be 'normal' or 'uniform")
+
     for n in range(0, n_samples):
-        rpta_partition = partition.generate_random_partition(N_fine, part_min, part_max)
+        rpta_partition = gen(N_fine, part_min, part_max, part_mean, part_sd)
         N_coarse = len(rpta_partition)*2
 
         # Main computation step
@@ -50,6 +61,9 @@ if __name__ == "__main__":
     parser.add_argument("n_samples", type=int)
     parser.add_argument("part_min", type=int)
     parser.add_argument("part_max", type=int)
+    parser.add_argument("--distribution", type=str, default='uniform', help="distribution of partition boundaries")
+    parser.add_argument("--part-mean", type=float, help="mean for --distribution=normal")
+    parser.add_argument("--part-sd", type=float, help="standard deviation for --distribution=normal")
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
     args = parser.parse_args()
     np.random.seed(args.seed)
@@ -59,6 +73,7 @@ if __name__ == "__main__":
     
     # Solve it with randomly chosen partitions
     for sample in main_random(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                              args.n_samples, args.part_min, args.part_max):
+                              args.n_samples, args.distribution, args.part_min, 
+                              args.part_max, args.part_mean, args.part_sd):
         x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition = sample
         print('{},{},{:e},{:e}'.format(args.mtx_id, args.N_fine, fre, mtx_cond_coarse))

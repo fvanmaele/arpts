@@ -8,6 +8,7 @@ Created on Sun Apr 10 21:02:37 2022
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+from scipy.stats import truncnorm
 
 import matplotlib # __version__
 from packaging import version
@@ -95,7 +96,36 @@ def generate_partition_func(a_fine, b_fine, c_fine, part_min, part_max,
     return partition
 
 
-# TODO: try some other distributions (e.g. binomial)
+def get_truncated_normal(mean=0, sd=1, low=0, upp=10):
+    return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)
+
+def randint_normal(size, mean=0, sd=1, low=0, upp=10):
+    return get_truncated_normal(mean, sd, low, upp).rvs(size).round().astype(int)
+
+
+def generate_random_partition_normal(N, part_min, part_max, part_mean, part_sd=2):
+    assert(part_min < part_max)
+    assert(part_min > 0)
+    assert(part_max < N-1)
+
+    partition = []
+    partition_begin = 0
+    remainder = N
+
+    while remainder >= 0:
+        offset = randint_normal(1, mean=part_mean, sd=part_sd, low=part_min, upp=part_max)[0]
+        partition.append([partition_begin, min(partition_begin+offset, N)])
+        partition_begin += offset
+        remainder -= offset
+
+    # If last partition is too low, merge into upper neighbor
+    if partition[-1][1] - partition[-1][0] < part_min:
+        partition[-2] = [partition[-2][0], N]
+        partition.pop()
+    
+    return partition
+
+
 def generate_random_partition(N, part_min, part_max):
     assert(part_min < part_max)
     assert(part_min > 0)
