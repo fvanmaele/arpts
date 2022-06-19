@@ -26,7 +26,8 @@ def main_setup(mtx_id, N_fine):
 
 
 def main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
-                n_samples, distribution, part_min, part_max, part_mean=None, part_sd=None):
+                n_samples, distribution, part_min, part_max, 
+                part_mean=None, part_sd=None):
     if distribution == 'normal':
         assert(part_mean is not None)
         assert(part_sd is not None)
