@@ -206,7 +206,7 @@ part_begin = 0
 part_min_size = 20
 part_max_size = 40
 
-while remainder >= 40:
+while remainder >= part_max_size:
     mtx_conds, mtx_dets = split_block_reduce_inner_vals(
         a_fine, b_fine, c_fine, d_fine, part_begin, part_begin+part_max_size)
     conds_asc = np.argsort(mtx_conds)
