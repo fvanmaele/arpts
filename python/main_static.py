@@ -41,13 +41,13 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
-def main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M_range, min_part):
+def main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M_range, min_part, pivoting):
     for M in M_range:
         rpta_partition = partition.generate_static_partition(N_fine, M, min_part)
         N_coarse = len(rpta_partition)*2
     
         x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-            N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
+            N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
     
         if x_fine_rptapp is not None:
             fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
@@ -64,6 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("M")
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
     parser.add_argument("--min-size", type=int, default=5, help="minimum partition size")
+    parser.add_argument("--pivoting", type=str, default='scaled_partial', help="type of pivoting used")
     args = parser.parse_args()
     np.random.seed(args.seed)        
 
@@ -73,6 +74,6 @@ if __name__ == "__main__":
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     
     for sample in main_static(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                              M_range, args.min_size):
+                              M_range, args.min_size, args.pivoting):
         _, M, fre, _, mtx_cond_coarse, _ = sample
         print("{},{},{},{:e},{:e}".format(args.mtx_id, args.N_fine, M, fre, mtx_cond_coarse))

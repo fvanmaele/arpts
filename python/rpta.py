@@ -20,7 +20,7 @@ def apply_threshold(x, y, eps):
 
 
 # TODO: add visualization
-def eliminate_band(a, b, c, d, pivoting, threshold=0):
+def eliminate_band(a, b, c, d, pivoting, threshold=0, cutoff=False):
     M = len(a)
     assert(M > 1) # band should at least have one element
 
@@ -73,7 +73,7 @@ def eliminate_band(a, b, c, d, pivoting, threshold=0):
     return s_p[0], s_p[1], s_p[2], s_p[4]
 
 
-# TODO: adjust for partitions with dynamic boundaries (take list as input)
+# TODO: take downwards cut-off as an argument
 def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
                   partition, pivoting, threshold=0):
     # num_partitions = len(partition)
@@ -92,7 +92,7 @@ def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, 
             b_fine[partition_begin:partition_end],
             c_fine[partition_begin:partition_end],
             d_fine[partition_begin:partition_end],
-            pivoting, threshold)
+            pivoting, threshold, True)
         c_coarse_upper, b_coarse_upper, a_coarse_upper, d_coarse_upper = eliminate_band(
             list(reversed(c_fine[partition_begin:partition_end])),
             list(reversed(b_fine[partition_begin:partition_end])),

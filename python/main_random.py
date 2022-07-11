@@ -25,8 +25,7 @@ def main_setup(mtx_id, N_fine):
     return a_fine, b_fine, c_fine, d_fine, x_fine
 
 
-def main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
-                n_samples, distribution, part_min, part_max, 
+def main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_samples, distribution, part_min, part_max, pivoting,
                 part_mean=None, part_sd=None):
     if distribution == 'normal':
         assert(part_mean is not None)
@@ -45,7 +44,7 @@ def main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
 
         # Main computation step
         x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-            N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, threshold=0)
+            N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
 
         if x_fine_rptapp is not None:
             fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
@@ -66,6 +65,7 @@ if __name__ == "__main__":
     parser.add_argument("--part-mean", type=float, help="mean for --distribution=normal")
     parser.add_argument("--part-sd", type=float, help="standard deviation for --distribution=normal")
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
+    parser.add_argument("--pivoting", type=str, default='scaled_partial', help="type of pivoting used")
     args = parser.parse_args()
     np.random.seed(args.seed)
 
@@ -75,6 +75,6 @@ if __name__ == "__main__":
     # Solve it with randomly chosen partitions
     for sample in main_random(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
                               args.n_samples, args.distribution, args.part_min, 
-                              args.part_max, args.part_mean, args.part_sd):
+                              args.part_max, args.pivoting, args.part_mean, args.part_sd):
         x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition = sample
         print('{},{},{:e},{:e}'.format(args.mtx_id, args.N_fine, fre, mtx_cond_coarse))
