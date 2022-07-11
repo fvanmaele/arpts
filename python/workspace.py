@@ -134,13 +134,15 @@ def eliminate_band(a, b, c, d, pivoting='scaled_partial'):
 
         yield s_p
 
-def eliminate_band_reversed(a, b, c, d):
+
+def eliminate_band_reversed(a, b, c, d, pivoting='scaled_partial'):
     a_rev = list(reversed(a))
     b_rev = list(reversed(b))
     c_rev = list(reversed(c))
     d_rev = list(reversed(d))
     
-    yield from eliminate_band(c_rev, b_rev, a_rev, d_rev)
+    yield from eliminate_band(c_rev, b_rev, a_rev, d_rev, pivoting)
+
 
 def print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoting):
     # M = len(range(begin, end))
@@ -151,7 +153,9 @@ def print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivo
 
     for i, s_p in enumerate(eliminate_band(a, b, c, d, pivoting)):
         # a, b, c, d = s_p
-        print(begin+i+1, ":", s_p[0], s_p[1], s_p[2], s_p[3], s_p[4])
+        print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
+            i, s_p[0], s_p[1], s_p[2], s_p[3], s_p[4]))
+
 
 def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoting):
     M = len(range(begin, end))
@@ -162,38 +166,42 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
 
     for i, s_r in enumerate(eliminate_band(c_rev, b_rev, a_rev, d_rev, pivoting)):
         # c, b, a, d = s_r
-        print(M-(i+1), ":", s_r[2], s_r[1], s_r[0], s_r[3], s_r[4])
+        print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
+            M-(i+1), s_r[2], s_r[1], s_r[0], s_r[3], s_r[4]))
 
 
 # %% downwards elimination (block 0, M = 32, 33)
-print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 16, 64, 'scaled_partial')
+print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 64, 'partial')
 
 # %% upwards elimination (block 0, M = 32)
-print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'scaled_partial')
+print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 64, 'partial')
 
 # %%
-def split_block_reduce_inner_vals(a_fine, b_fine, c_fine, d_fine, begin, end):
+# TODO: verify this code (check that upwards and downwards elimination is correct)
+# TODO: check this method for other matrices (and partial pivoting)
+def split_block_reduce_inner_vals(a_fine, b_fine, c_fine, d_fine, begin, end, pivoting):
     mtx_conds, mtx_dets = [np.Inf], [0]
     a = a_fine[begin:end]
     b = b_fine[begin:end]
     c = c_fine[begin:end]
     d = d_fine[begin:end]
     
-    gen_p = eliminate_band(a, b, c, d)
-
-    for i in range(begin+1, end-1):  # row indices, a[1] ... a[M-1]
+    gen_p = eliminate_band(a, b, c, d, pivoting)
+    for i in range(begin+1, end-1):  # rows for downwards elimination, a[1] ... a[M-1]
         # print("i: {}".format(i))
         s_p = next(gen_p)
+        gen_r = eliminate_band_reversed(a, b, c, d, pivoting)
 
+        # print("k: [{}, {}]".format(i+1, end))
         # XXX: results are not not cached, but recomputed for each i
-        gen_r = eliminate_band(a, b, c, d)
-        # print("j: [{}, {}]".format(i+1, end))
         for k in range(i+1, end): # remaining rows for upwards elimination
             s_r = next(gen_r)
 
         mtx_check = np.array([[s_p[1], s_p[2]], 
                               [s_r[2], s_r[1]]])
-        # mtx_check = np.array([[s_p[0], s_p[1]], [s_r[1], s_r[0]]])
+        # mtx_check = np.array([[s_p[0], s_p[1]], 
+        #                       [s_r[1], s_r[0]]])
+
         mtx_conds.append(np.linalg.cond(mtx_check))
         mtx_dets.append(np.abs(np.linalg.det(mtx_check)))
 
@@ -205,24 +213,32 @@ part_conds = []
 part_begin = 0
 part_min_size = 20
 part_max_size = 40
+pivoting = 'partial'
 
 while remainder >= part_max_size:
     mtx_conds, mtx_dets = split_block_reduce_inner_vals(
-        a_fine, b_fine, c_fine, d_fine, part_begin, part_begin+part_max_size)
+        a_fine, b_fine, c_fine, d_fine, 
+        part_begin, part_begin+part_max_size, pivoting)
     conds_asc = np.argsort(mtx_conds)
     # conds_asc = np.flip(np.argsort(mtx_dets))
     
     # first row[i] with partition size >= min
     i_opt = np.argwhere(conds_asc >= part_min_size)[0][0]
-    # row[i+1] contains lower spike of compraed block
-    offset = conds_asc[i_opt]+3
+    # row[i+1] contains lower spike of compared block
+    offset = conds_asc[i_opt]+2
 
     # print([part_begin, part_begin+offset+1])
     part_conds.append([part_begin, part_begin+offset])
     part_begin += offset
     remainder -= offset
 
-part_conds[-1] = [472, 512]
+if 512 - part_conds[-1][1] < part_min_size:
+    part_conds[-1] = [part_conds[-1][0], 512]
+elif part_conds[-1][1] < 512:
+    part_conds.append([part_conds[-1][1], 512])
+
+#part_conds[-1] = [472, 512]
+#part_conds.append([495, 512])
 
 # %%
 for p in part_conds:
@@ -261,3 +277,8 @@ for sample in main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
     _, _fre_n, _, _cond_n, _ = sample
     fre_random_normal.append(_fre_n)
     cond_random_normal.append(_cond_n)
+    
+# %% Approximate solutions
+# For partial pivoting, the value of the spikes are monotically decreasing.
+# Use this to decouple the system by setting the spikes (after a certain amount
+# of steps) to zero.

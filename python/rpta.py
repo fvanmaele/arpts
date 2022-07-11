@@ -7,10 +7,6 @@ import numpy as np
 import sys
 import matrix # bands_to_numpy_matrix
 
-PIVOTING="scaled_partial"
-#PIVOTING="partial"
-#PIVOTING="none"
-
 def apply_threshold(x, y, eps):
     xt, yt = [0, 0]
     if eps == 0:
@@ -24,7 +20,7 @@ def apply_threshold(x, y, eps):
 
 
 # TODO: add visualization
-def eliminate_band(a, b, c, d, threshold=0):
+def eliminate_band(a, b, c, d, pivoting, threshold=0):
     M = len(a)
     assert(M > 1) # band should at least have one element
 
@@ -48,13 +44,13 @@ def eliminate_band(a, b, c, d, threshold=0):
         apply_threshold(s_p[1], s_c[1], threshold)
 
         # Scaled partial pivoting
-        if PIVOTING == "scaled_partial":
+        if pivoting == "scaled_partial":
             m_p = max([abs(s_p[0]), abs(s_p[1]), abs(s_p[2])])
             m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
-        elif PIVOTING == "partial":
+        elif pivoting == "partial":
             m_p = 1.0
             m_c = 1.0
-        elif PIVOTING == "none":
+        elif pivoting == "none":
             m_p = 0.0
             m_c = 0.0
 
@@ -78,8 +74,8 @@ def eliminate_band(a, b, c, d, threshold=0):
 
 
 # TODO: adjust for partitions with dynamic boundaries (take list as input)
-def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse,
-                  d_coarse, partition, threshold=0):
+def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
+                  partition, pivoting, threshold=0):
     # num_partitions = len(partition)
     # N = len(a_fine)
     # partition_start = 0
@@ -96,13 +92,13 @@ def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse,
             b_fine[partition_begin:partition_end],
             c_fine[partition_begin:partition_end],
             d_fine[partition_begin:partition_end],
-            threshold)
+            pivoting, threshold)
         c_coarse_upper, b_coarse_upper, a_coarse_upper, d_coarse_upper = eliminate_band(
             list(reversed(c_fine[partition_begin:partition_end])),
             list(reversed(b_fine[partition_begin:partition_end])),
             list(reversed(a_fine[partition_begin:partition_end])),
             list(reversed(d_fine[partition_begin:partition_end])),
-            threshold)
+            pivoting, threshold)
 
         a_coarse[2 * partition_id] = a_coarse_upper
         b_coarse[2 * partition_id] = b_coarse_upper
@@ -117,8 +113,8 @@ def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse,
 
 # x1_prev_partition = 0 for the first partition
 # x0_next_partition = 0 for the last partition
-def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
-                                 x0_next_partition, threshold=0):
+def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1, x0_next_partition, 
+                                 pivoting, threshold=0):
     #print("eliminate_band_with_solution: threshold: {}".format(threshold))
     M = len(a)
     assert(M > 1) # band should at least have one element
@@ -152,13 +148,13 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
         apply_threshold(s_p[1], s_c[1], threshold)
 
         # Scaled partial pivoting
-        if PIVOTING == "scaled_partial":
+        if pivoting == "scaled_partial":
             m_p = max([abs(s_p[1]), abs(s_p[2])])
             m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
-        elif PIVOTING == "partial":
+        elif pivoting == "partial":
             m_p = 1.0
             m_c = 1.0
-        elif PIVOTING == "none":
+        elif pivoting == "none":
             m_p = 0.0
             m_c = 0.0
 
@@ -205,7 +201,8 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1,
     return x
 
 
-def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, threshold=0):
+def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, 
+                      pivoting, threshold=0):
     num_partitions = len(partition)
     N = len(a_fine)
     x_fine = [None] * N
@@ -234,7 +231,8 @@ def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, thres
             list(b_fine[partition_begin:partition_end]),
             list(c_fine[partition_begin:partition_end]),
             list(d_fine[partition_begin:partition_end]),
-            x1_prev_partition, x0, x1, x0_next_partition, threshold)
+            x1_prev_partition, x0, x1, x0_next_partition, 
+            pivoting, threshold)
 
         x_fine[partition_begin:partition_end] = x_partition
 
@@ -245,7 +243,8 @@ def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition, thres
 # The observation here is that consecutive rows in the coarse system are, for a bad partitioning,
 # nearly linearly independent. As such, we can optimize for this when constructing (rows of)
 # the coarse system.
-def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, threshold=0):
+def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, 
+                          pivoting='scaled_partial'):
     N = len(a_fine)
     assert(part_min < part_max)
     assert(part_min > 0)
@@ -264,13 +263,13 @@ def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, th
                 b_fine[partition_begin:partition_end],
                 c_fine[partition_begin:partition_end],
                 d_fine[partition_begin:partition_end],
-                threshold)
+                pivoting, threshold=0)
             c_coarse_upper, b_coarse_upper, a_coarse_upper, d_coarse_upper = eliminate_band(
                 list(reversed(c_fine[partition_begin:partition_end])),
                 list(reversed(b_fine[partition_begin:partition_end])),
                 list(reversed(a_fine[partition_begin:partition_end])),
                 list(reversed(d_fine[partition_begin:partition_end])),
-                threshold)
+                pivoting, threshold=0)
             
             # Criterion: minimum condition
             mtx = np.matrix([[b_coarse_upper, c_coarse_upper],
@@ -295,7 +294,8 @@ def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max, th
 
 
 # TODO: support recursion
-def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, partition, threshold=0):
+def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, partition, 
+                     pivoting='scaled_partial'):
     # Reduce to coarse system
     a_coarse = np.zeros(N_coarse)
     b_coarse = np.zeros(N_coarse)
@@ -303,15 +303,15 @@ def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, partition, thresh
     d_coarse = np.zeros(N_coarse)
     
     rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse,
-                  partition, threshold=0)
+                  partition, pivoting, threshold=0)
     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
-    
+
     # Plot coarse system
     # partition.plot_coarse_system(mtx_coarse, "Condition: {:e}".format(mtx_cond_coarse))
     try:
         x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
-        x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, 
-                                          x_coarse, partition, threshold=0)
+        x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, 
+                                          partition, pivoting, threshold=0)
         mtx_cond_coarse = np.linalg.cond(mtx_coarse)
         # fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
 

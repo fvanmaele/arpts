@@ -107,7 +107,7 @@ def rptapp_cond_part(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
     d_coarse = np.zeros(N_coarse)
     
     rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
-                       dyn_partition, threshold)
+                       dyn_partition, 'scaled_partial', threshold)
     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
     mtx_cond_coarse = np.linalg.cond(mtx_coarse)
     
@@ -122,7 +122,7 @@ def rptapp_cond_part(a_fine, b_fine, c_fine, d_fine, N_tilde, M,
                                     k_max_up, k_max_down, threshold, n_halo, level=level+1)
     # Substitute into fine system
     x_fine_rptapp = rpta.rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, 
-                                           dyn_partition, threshold)
+                                           dyn_partition, 'scaled_partial', threshold)
     
     # Return additional values for parameter study    
     return x_fine_rptapp, mtx_coarse, mtx_cond_coarse, mtx_cond_partmax, mtx_cond_partmax_dyn, dyn_partition
