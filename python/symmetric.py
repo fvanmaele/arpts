@@ -65,12 +65,12 @@ def eliminate_band_iter(a, b, c, d, pivoting):
 
 def eliminate_band_expand(a, b, c, d, pivoting):
     M = len(a)
-    s_new = [0.0] * (M - 1)  # spike
-    b_new = [0.0] * (M - 1)
-    c_new = [0.0] * (M - 1)
-    d_new = [0.0] * (M - 1)
+    s_new = [0.0] * M  # spike
+    b_new = [0.0] * M
+    c_new = [0.0] * M
+    d_new = [0.0] * M
     
-    for j, s_p in enumerate(eliminate_band_iter(a, b, c, d, pivoting)):
+    for j, s_p in enumerate(eliminate_band_iter(a, b, c, d, pivoting), start=1):
         s_new[j] = s_p[0]
         b_new[j] = s_p[1]
         c_new[j] = s_p[2]
@@ -88,12 +88,13 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
     c_coarse = [0.0] * N_coarse
     d_coarse = [0.0] * N_coarse
 
-    # TODO: better way of saving vectors for each block
+    # Save vectors for each block before reduction step
     saved_arrays = [[None, None]]*len(partition)
 
     for part_id, part_bounds in enumerate(partition):
         part_begin, part_end = part_bounds
         
+        # downwards elimination
         s_lower, b_lower, c_lower, d_lower = eliminate_band_expand(
             a_fine[part_begin:part_end],
             b_fine[part_begin:part_end],
@@ -101,6 +102,7 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
             d_fine[part_begin:part_end], pivoting)
         saved_arrays[part_id][0] = s_lower, b_lower, c_lower, d_lower
 
+        # upwards elimination
         a_upper, b_upper, s_upper, d_upper = eliminate_band_expand(
             list(reversed(c_fine[part_begin:part_end])),
             list(reversed(b_fine[part_begin:part_end])),
@@ -119,16 +121,41 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
         d_coarse[2 * part_id + 1] = d_lower[-1]
 
     # TODO: support recursion
-    # Solve coarse system (interface degrees of freedom)
+    # Solve coarse system (reduction step, solve interface between blocks)
     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
     x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
     
-    # Solve blocks 
+    # Solve blocks
+    x_fine = [] # solution of fine system
     for part_id, part_bounds in enumerate(partition):
         part_begin, part_end = part_bounds
-        x1 = x_coarse[part_id]
-        xn = x_coarse[part_id+1]
+        s_lower, b_lower, c_lower, d_lower = saved_arrays[part_id][0]
+        a_upper, b_upper, s_upper, d_upper = saved_arrays[part_id][1]
         
+        x1 = x_coarse[part_id]   # x_fine[part_begin]
+        xn = x_coarse[part_id+1] # x_fine[part_end]
+
+        # x_fine.append(x1)
+        print(part_id, x1)
         
-    # TODO: solve 2x2 linear systems
-    return a_coarse, b_coarse, c_coarse, d_coarse
+        for idx, j in enumerate(range(part_begin+1, part_end-1), start=1):
+            # FIXME: correct matrices and right-hand sides
+            mtx_j = np.array([[b_lower[idx], c_lower[idx]], 
+                              [a_upper[idx], b_upper[idx]]])
+            rhs_j = np.array([d_lower[idx] - x1*s_lower[idx], 
+                              d_upper[idx] - xn*s_upper[idx]])
+            xj, xjpp = np.linalg.solve(mtx_j, rhs_j)
+            # print(part_id, xj, xjpp)
+            print(part_id, xj)
+
+
+        #     # TODO: take candidate system with maximum determinant
+        #     det_j = np.linalg.det(mtx_j)
+        #     inv_j = 1/det_j * np.array([[ b_upper[idx], -c_lower[idx]],
+        #                                 [-a_upper[idx],  b_lower[idx]]])
+        #     xj, xjpp = inv_j @ rhs_j # x_{j}, x_{j+1}
+        #     print(j, xj, xjpp)
+        print(part_id, xn)
+        # x_fine.append(xn)
+
+    return x_fine

@@ -76,10 +76,10 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
     # return np.array(list(reversed(spikes)))
 
 # %%
-print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 32, 64, 'partial')
+# print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 32, 64, 'partial')
 
 # %%
-print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 32, 64, 'partial')
+# print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 32, 64, 'partial')
 
 # %%
 a = a_fine[0:32]
@@ -92,25 +92,28 @@ coarse_upper = rpta.eliminate_band(
     list(reversed(c)), list(reversed(b)), list(reversed(a)), list(reversed(d)), 'partial')
 
 # %%
-ac = [0, 0]
-bc = [0, 0]
-cc = [0, 0]
-dc = [0, 0]
-rpta.rptapp_reduce(a, b, c, d, ac, bc, cc, dc, [[0,32]], 'partial')
-matrix.bands_to_numpy_matrix(ac, bc, cc)
+# def test_rpta_symm(a_fine, b_fine, c_fine, d_fine):
+#     static_partition = partition.generate_static_partition(512, 32)
+#     N_coarse = len(static_partition)*2
+#     a_coarse = [0.0] * N_coarse
+#     b_coarse = [0.0] * N_coarse
+#     c_coarse = [0.0] * N_coarse
+#     d_coarse = [0.0] * N_coarse
+
+#     rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, 
+#                        a_coarse, b_coarse, c_coarse, d_coarse, static_partition, 'partial')
+#     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+
+#     mtx_coarse_2 = symmetric.rpta_symmetric(
+#         a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
+#     assert(np.all(mtx_coarse == mtx_coarse_2))
+
+# test_rpta_symm(a_fine, b_fine, c_fine, d_fine)
 
 # %%
 static_partition = partition.generate_static_partition(512, 32)
-N_coarse = len(static_partition)*2
-a_coarse = [0.0] * N_coarse
-b_coarse = [0.0] * N_coarse
-c_coarse = [0.0] * N_coarse
-d_coarse = [0.0] * N_coarse
-
-rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, static_partition, 'partial')
-mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+x_fine_rptapp, mtx_coarse, mtx_cond_coarse, d_coarse = rpta.reduce_and_solve(
+    a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='scaled_partial')
 
 # %%
-a_coarse_2, b_coarse_2, c_coarse_2, d_coarse_2 = symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
-mtx_coarse_2 = matrix.bands_to_numpy_matrix(a_coarse_2, b_coarse_2, c_coarse_2)
-assert(np.all(mtx_coarse == mtx_coarse_2))
+symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition)

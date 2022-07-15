@@ -44,10 +44,9 @@ def main_setup(mtx_id, N_fine):
 def main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M_range, min_part, pivoting):
     for M in M_range:
         rpta_partition = partition.generate_static_partition(N_fine, M, min_part)
-        N_coarse = len(rpta_partition)*2
-    
+
         x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-            N_coarse, a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
+            a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
     
         if x_fine_rptapp is not None:
             fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)

@@ -293,8 +293,8 @@ def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max,
 
 
 # TODO: support recursion
-def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, partition, 
-                     pivoting='scaled_partial'):
+def reduce_and_solve(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_partial'):
+    N_coarse = len(partition)*2
     # Reduce to coarse system
     a_coarse = np.zeros(N_coarse)
     b_coarse = np.zeros(N_coarse)
@@ -318,4 +318,4 @@ def reduce_and_solve(N_coarse, a_fine, b_fine, c_fine, d_fine, partition,
         print("warning: Singular matrix detected", file=sys.stderr)
         x_fine_rptapp, mtx_coarse, mtx_cond_coarse = None, None, np.Inf
         
-    return x_fine_rptapp, mtx_coarse, mtx_cond_coarse
+    return x_fine_rptapp, mtx_coarse, mtx_cond_coarse, d_coarse

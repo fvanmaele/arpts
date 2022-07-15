@@ -73,7 +73,6 @@ def generate_test_case(test_case, a_fine, b_fine, c_fine, d_fine, x_fine, *main_
 def run_trials(mtx, a_fine, b_fine, c_fine, part, label, gen_samples, n_trials=5000):
     trials = [None]*n_trials
     N_fine = len(a_fine)
-    N_coarse = len(part)*2
 
     for k in range(0, n_trials):
         x_fine_new = gen_samples(N_fine)
@@ -81,7 +80,7 @@ def run_trials(mtx, a_fine, b_fine, c_fine, part, label, gen_samples, n_trials=5
         
         # Solve linear system with new right-hand side
         x_fine_rptapp_new, mtx_coarse_new, mtx_cond_coarse_new = rpta.reduce_and_solve(
-            N_coarse, a_fine, b_fine, c_fine, d_fine_new, part, threshold=0)
+            a_fine, b_fine, c_fine, d_fine_new, part, threshold=0)
         
         if k % 20 == 0:
             print("trial #{}, {}".format(k, label))
