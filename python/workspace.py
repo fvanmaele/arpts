@@ -44,52 +44,48 @@ d_fine = np.matmul(A, x_fine)
 
 # %%
 def print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoting):
-    # M = len(range(begin, end))
     a = a_fine[begin:end]
     b = b_fine[begin:end]
     c = c_fine[begin:end]
     d = d_fine[begin:end]
-    # spikes = []
 
-    for i, s_p in enumerate(symmetric.eliminate_band_iter(a, b, c, d, pivoting), start=1):
-        # a, b, c, d = s_p
-        print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
-            begin+i, s_p[0], s_p[1], s_p[2], s_p[3], s_p[4]))
-        # spikes.append(s_p[0])
+    s_lower, b_lower, c_lower, d_lower = symmetric.eliminate_band_expand(a, b, c, d, pivoting)
+
+    for i in range(0, len(s_lower)):
+        print("{:2}: {:>20.6e} {:>5.1f} {:>20.6e} {:>20.6e} {:>20.6e}".format(
+            begin+i, s_lower[i], 0.0, b_lower[i], c_lower[i], d_lower[i]))
+    
+    # for i, s_p in enumerate(symmetric.eliminate_band_iter(a, b, c, d, pivoting)):
+    #     print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
+    #         begin+i, s_p[0], s_p[1], s_p[2], s_p[3], s_p[4]))
         
-    # return np.array(spikes)
 
 def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoting):
-    M = len(range(begin, end))
     a_rev = list(reversed(a_fine[begin:end]))
     b_rev = list(reversed(b_fine[begin:end]))
     c_rev = list(reversed(c_fine[begin:end]))
     d_rev = list(reversed(d_fine[begin:end]))
-    # spikes = []
 
-    for i, s_r in enumerate(symmetric.eliminate_band_iter(c_rev, b_rev, a_rev, d_rev, pivoting), start=2):
-        # c, b, a, d = s_r
+    s_upper, b_upper, a_upper, d_upper = symmetric.eliminate_band_expand(c_rev, b_rev, a_rev, d_rev, pivoting)
+    a_upper_rev = list(reversed(a_upper))
+    b_upper_rev = list(reversed(b_upper))
+    s_upper_rev = list(reversed(s_upper))
+    d_upper_rev = list(reversed(d_upper))
+    
+    for i in range(0, len(a_upper)):
         print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
-            M-i, s_r[2], s_r[1], s_r[0], s_r[3], s_r[4]))
-        # spikes.append(s_r[2])
-        
-    # return np.array(list(reversed(spikes)))
+            i, a_upper_rev[i], b_upper_rev[i], s_upper_rev[i], 0.0, d_upper_rev[i]))
+    
+    # for i, s_r in enumerate(symmetric.eliminate_band_iter(c_rev, b_rev, a_rev, d_rev, pivoting), start=1):
+    #     print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
+    #         M-i, s_r[2], s_r[1], s_r[0], s_r[3], s_r[4]))
+
 
 # %%
-# print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 32, 64, 'partial')
+print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
 
 # %%
-# print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 32, 64, 'partial')
-
-# %%
-a = a_fine[0:32]
-b = b_fine[0:32]
-c = c_fine[0:32]
-d = d_fine[0:32]
-
-coarse_lower = rpta.eliminate_band(a, b, c, d, 'partial')
-coarse_upper = rpta.eliminate_band(
-    list(reversed(c)), list(reversed(b)), list(reversed(a)), list(reversed(d)), 'partial')
+print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
 
 # %%
 # def test_rpta_symm(a_fine, b_fine, c_fine, d_fine):
@@ -113,7 +109,8 @@ coarse_upper = rpta.eliminate_band(
 # %%
 static_partition = partition.generate_static_partition(512, 32)
 x_fine_rptapp, mtx_coarse, mtx_cond_coarse, d_coarse = rpta.reduce_and_solve(
-    a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='scaled_partial')
+    a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='partial')
 
 # %%
-symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition)
+# mtx_coarse_2 = symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
+symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
