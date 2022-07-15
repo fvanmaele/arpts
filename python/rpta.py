@@ -73,7 +73,6 @@ def eliminate_band(a, b, c, d, pivoting, threshold=0, cutoff=False):
     return s_p[0], s_p[1], s_p[2], s_p[4]
 
 
-# TODO: take downwards cut-off as an argument
 def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
                   partition, pivoting, threshold=0):
     # num_partitions = len(partition)

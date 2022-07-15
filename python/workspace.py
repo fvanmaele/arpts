@@ -76,16 +76,41 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
     # return np.array(list(reversed(spikes)))
 
 # %%
-print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
+print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 32, 64, 'partial')
 
 # %%
-print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
+print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 32, 64, 'partial')
 
 # %%
 a = a_fine[0:32]
 b = b_fine[0:32]
 c = c_fine[0:32]
 d = d_fine[0:32]
-b_down, c_down, d_down, s_down, a_up, b_up, d_up, s_up = symmetric.rpta_symmetric(a, b, c, d, pivoting='partial')
+
+coarse_lower = rpta.eliminate_band(a, b, c, d, 'partial')
+coarse_upper = rpta.eliminate_band(
+    list(reversed(c)), list(reversed(b)), list(reversed(a)), list(reversed(d)), 'partial')
 
 # %%
+ac = [0, 0]
+bc = [0, 0]
+cc = [0, 0]
+dc = [0, 0]
+rpta.rptapp_reduce(a, b, c, d, ac, bc, cc, dc, [[0,32]], 'partial')
+matrix.bands_to_numpy_matrix(ac, bc, cc)
+
+# %%
+static_partition = partition.generate_static_partition(512, 32)
+N_coarse = len(static_partition)*2
+a_coarse = [0.0] * N_coarse
+b_coarse = [0.0] * N_coarse
+c_coarse = [0.0] * N_coarse
+d_coarse = [0.0] * N_coarse
+
+rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, static_partition, 'partial')
+mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+
+# %%
+a_coarse_2, b_coarse_2, c_coarse_2, d_coarse_2 = symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
+mtx_coarse_2 = matrix.bands_to_numpy_matrix(a_coarse_2, b_coarse_2, c_coarse_2)
+assert(np.all(mtx_coarse == mtx_coarse_2))

@@ -6,8 +6,11 @@ Created on Thu Jul 14 17:11:15 2022
 @author: archie
 """
 
+import matrix
+import numpy as np
+
 # %%
-def eliminate_band_iter(a, b, c, d, pivoting='scaled_partial'):
+def eliminate_band_iter(a, b, c, d, pivoting):
     M = len(a)
     assert(M > 1) # band should at least have one element
 
@@ -60,45 +63,72 @@ def eliminate_band_iter(a, b, c, d, pivoting='scaled_partial'):
         yield s_p
 
 
-def eliminate_band_iter_reversed(a, b, c, d, pivoting='scaled_partial'):
-    a_rev = list(reversed(a))
-    b_rev = list(reversed(b))
-    c_rev = list(reversed(c))
-    d_rev = list(reversed(d))
-    
-    yield from eliminate_band_iter(c_rev, b_rev, a_rev, d_rev, pivoting)
-
-
-    
-# %%
-def rpta_symmetric(a, b, c, d, partition, pivoting='scaled_partial'):
+def eliminate_band_expand(a, b, c, d, pivoting):
     M = len(a)
-    assert(M > 1) # band should at least have one element
-
-    # downwards elimination
-    b_down = [0.0] * M
-    c_down = [0.0] * M
-    d_down = [0.0] * M
-    s_down = [0.0] * M  # spike
-
-    for j, s_p in enumerate(eliminate_band_iter(a, b, c, d, pivoting), start=1):
-        s_down[j] = s_p[0]
-        b_down[j] = s_p[1]
-        c_down[j] = s_p[2]
-        d_down[j] = s_p[4]
-        
-    # upwards elimination
-    a_up = [0.0] * M
-    b_up = [0.0] * M
-    d_up = [0.0] * M
-    s_up = [0.0] * M # spike
+    s_new = [0.0] * (M - 1)  # spike
+    b_new = [0.0] * (M - 1)
+    c_new = [0.0] * (M - 1)
+    d_new = [0.0] * (M - 1)
     
-    for j, s_r in enumerate(eliminate_band_iter_reversed(a, b, c, d, pivoting), start=1):
-        s_up[j] = s_r[0]
-        b_up[j] = s_r[1]
-        a_up[j] = s_r[2]
-        d_up[j] = s_r[4]
+    for j, s_p in enumerate(eliminate_band_iter(a, b, c, d, pivoting)):
+        s_new[j] = s_p[0]
+        b_new[j] = s_p[1]
+        c_new[j] = s_p[2]
+        d_new[j] = s_p[4]
 
+    return s_new, b_new, c_new, d_new
+
+
+# %%
+def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_partial'):
+    assert(len(a_fine) > 1) # band should at least have one element
+    N_coarse = len(partition)*2
+    a_coarse = [0.0] * N_coarse
+    b_coarse = [0.0] * N_coarse
+    c_coarse = [0.0] * N_coarse
+    d_coarse = [0.0] * N_coarse
+
+    # TODO: better way of saving vectors for each block
+    saved_arrays = [[None, None]]*len(partition)
+
+    for part_id, part_bounds in enumerate(partition):
+        part_begin, part_end = part_bounds
+        
+        s_lower, b_lower, c_lower, d_lower = eliminate_band_expand(
+            a_fine[part_begin:part_end],
+            b_fine[part_begin:part_end],
+            c_fine[part_begin:part_end],
+            d_fine[part_begin:part_end], pivoting)
+        saved_arrays[part_id][0] = s_lower, b_lower, c_lower, d_lower
+
+        a_upper, b_upper, s_upper, d_upper = eliminate_band_expand(
+            list(reversed(c_fine[part_begin:part_end])),
+            list(reversed(b_fine[part_begin:part_end])),
+            list(reversed(a_fine[part_begin:part_end])),
+            list(reversed(d_fine[part_begin:part_end])), pivoting)
+        saved_arrays[part_id][1] = a_upper, b_upper, s_upper, d_upper
+
+        a_coarse[2 * part_id] = s_upper[-1]
+        b_coarse[2 * part_id] = b_upper[-1]
+        c_coarse[2 * part_id] = a_upper[-1]
+        d_coarse[2 * part_id] = d_upper[-1]
+
+        a_coarse[2 * part_id + 1] = s_lower[-1]
+        b_coarse[2 * part_id + 1] = b_lower[-1]
+        c_coarse[2 * part_id + 1] = c_lower[-1]
+        d_coarse[2 * part_id + 1] = d_lower[-1]
+
+    # TODO: support recursion
+    # Solve coarse system (interface degrees of freedom)
+    mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+    x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
+    
+    # Solve blocks 
+    for part_id, part_bounds in enumerate(partition):
+        part_begin, part_end = part_bounds
+        x1 = x_coarse[part_id]
+        xn = x_coarse[part_id+1]
+        
+        
     # TODO: solve 2x2 linear systems
-    return (b_down, c_down, d_down, s_down, 
-            list(reversed(a_up)), list(reversed(b_up)), list(reversed(d_up)), list(reversed(s_up)))
+    return a_coarse, b_coarse, c_coarse, d_coarse
