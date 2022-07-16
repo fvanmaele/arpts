@@ -27,7 +27,7 @@ from main_rows import main_rows
 
 
 # %% Linear system
-mtx_id = 14
+mtx_id = 1
 N_fine = 512
 
 A_sp = mmread('{}/mtx/{:02d}-{}'.format(source_dir, mtx_id, N_fine))
@@ -52,8 +52,8 @@ def print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivo
     s_lower, b_lower, c_lower, d_lower = symmetric.eliminate_band_expand(a, b, c, d, pivoting)
 
     for i in range(0, len(s_lower)):
-        print("{:2}: {:>20.6e} {:>5.1f} {:>20.6e} {:>20.6e} {:>20.6e}".format(
-            begin+i, s_lower[i], 0.0, b_lower[i], c_lower[i], d_lower[i]))
+        print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>20.6e}".format(
+            begin+i, s_lower[i], b_lower[i], c_lower[i], d_lower[i]))
     
     # for i, s_p in enumerate(symmetric.eliminate_band_iter(a, b, c, d, pivoting)):
     #     print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
@@ -73,8 +73,8 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
     d_upper_rev = list(reversed(d_upper))
     
     for i in range(0, len(a_upper)):
-        print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
-            i, a_upper_rev[i], b_upper_rev[i], s_upper_rev[i], 0.0, d_upper_rev[i]))
+        print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>20.6e}".format(
+            i, a_upper_rev[i], b_upper_rev[i], s_upper_rev[i], d_upper_rev[i]))
     
     # for i, s_r in enumerate(symmetric.eliminate_band_iter(c_rev, b_rev, a_rev, d_rev, pivoting), start=1):
     #     print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
@@ -112,5 +112,21 @@ x_fine_rptapp, mtx_coarse, mtx_cond_coarse, d_coarse = rpta.reduce_and_solve(
     a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='partial')
 
 # %%
-# mtx_coarse_2 = symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
 symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
+
+# %%
+B = np.array([[1, 2, 0, 0],
+              [2, 1, 2, 0],
+              [0, 2, 1, 2],
+              [0, 0, 2, 1]])
+Bd = np.array([1, 1, 1, 1])
+Ba, Bb, Bc = matrix.numpy_matrix_to_bands(B)
+
+# %%
+print_downwards_elimination(Ba, Bb, Bc, Bd, 0, 4, 'none')
+
+# %%
+print_upwards_elimination(Ba, Bb, Bc, Bd, 0, 4, 'none')
+
+# %%
+symmetric.rpta_symmetric(Ba, Bb, Bc, Bd, [[0,4]], 'none')
