@@ -109,6 +109,9 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
         c_coarse[2 * part_id + 1] = c_lower[-1]
         d_coarse[2 * part_id + 1] = d_lower[-1]
         
+        # store arrays for substituting interior x_j
+        saved_arrays[part_id][0] = s_lower, b_lower, c_lower, d_lower
+
         # upwards elimination
         s_upper, b_upper, a_upper, d_upper = eliminate_band_expand(
             list(reversed(c_fine[part_begin:part_end])),
@@ -121,9 +124,6 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
         c_coarse[2 * part_id] = s_upper[-1]
         d_coarse[2 * part_id] = d_upper[-1]
 
-        # store arrays for substituting interior x_j
-        saved_arrays[part_id][0] = s_lower, b_lower, c_lower, d_lower
-
         # store upwards elimination in same order as downwards elimination
         a_upper_rev = list(reversed(a_upper))
         b_upper_rev = list(reversed(b_upper))
@@ -133,10 +133,8 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
         saved_arrays[part_id][1] = a_upper_rev, b_upper_rev, s_upper_rev, d_upper_rev
         # saved_arrays[part_id][1] = a_upper, b_upper, s_upper, d_upper
 
-
     # Solve coarse system (reduction step, solve interface between blocks)
     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
-    # return mtx_coarse, d_coarse
     x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
 
     # Solve blocks
@@ -146,13 +144,12 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
         s_lower, b_lower, c_lower, d_lower = saved_arrays[part_id][0]
         a_upper, b_upper, s_upper, d_upper = saved_arrays[part_id][1] # TODO: rename to *_upper_rev
         
-        x0 = x_coarse[part_id]   # x_fine[part_begin]
-        xm = x_coarse[part_id+1] # x_fine[part_end]
+        x0 = x_coarse[2*part_id]   # x_fine[part_begin]
+        xm = x_coarse[2*part_id+1] # x_fine[part_end]
         # x_fine.append(x0)
-        print(part_id, x0)
+        print("{} {:>20.6e}".format(part_id, x0))
         # TODO: compute inner points
         for idx, j in enumerate(range(part_begin+1, part_end-1), start=2):
-            # print(idx, j)
             mtx_j = np.array([[b_lower[idx-1], c_lower[idx-1]], 
                               [a_upper[idx], b_upper[idx]]])
             # print(np.linalg.cond(mtx_j))
@@ -160,8 +157,9 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
                               d_upper[idx] - xm*s_upper[idx]])
             # print(rhs_j)
             xj, xjpp = np.linalg.solve(mtx_j, rhs_j)
-            print(part_id, xj, xjpp)
+            # print("{} {:>20.6e}  {:>20.6e}".format(part_id, xj, xjpp))
+            print("{} {:>20.6e}".format(part_id, xj))
 
         # x_fine.append()
-        print(part_id, xm)
+        print("{} {:>20.6e}".format(part_id, xm))
     return x_fine

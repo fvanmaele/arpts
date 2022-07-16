@@ -55,11 +55,9 @@ def eliminate_band(a, b, c, d, pivoting, threshold=0, cutoff=False):
             m_c = 0.0
 
         if abs(s_c[1])*m_p > abs(s_p[1])*m_c:
-            # print(s_c[1])
             r_c = (-1.0) * s_p[1] / s_c[1]
             r_p = 1.0
         else:
-            # print(s_p[1])
             r_c = 1.0
             r_p = (-1.0) * s_c[1] / s_p[1]
 
@@ -75,23 +73,18 @@ def eliminate_band(a, b, c, d, pivoting, threshold=0, cutoff=False):
 
 def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
                   partition, pivoting, threshold=0):
-    # num_partitions = len(partition)
-    # N = len(a_fine)
-    # partition_start = 0
-
     for partition_id, partition_bounds in enumerate(partition):
     # for partition_id, partition_offset in enumerate(range(0, N, M)):
         partition_begin = partition_bounds[0]
         partition_end = partition_bounds[1]
-        # partition_end = min(partition_offset +M, N)
-        # partition_size = partition_end - partition_start;
-        
+
         a_coarse_lower, b_coarse_lower, c_coarse_lower, d_coarse_lower = eliminate_band(
             a_fine[partition_begin:partition_end],
             b_fine[partition_begin:partition_end],
             c_fine[partition_begin:partition_end],
             d_fine[partition_begin:partition_end],
             pivoting, threshold, True)
+
         c_coarse_upper, b_coarse_upper, a_coarse_upper, d_coarse_upper = eliminate_band(
             list(reversed(c_fine[partition_begin:partition_end])),
             list(reversed(b_fine[partition_begin:partition_end])),

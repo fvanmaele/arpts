@@ -112,12 +112,13 @@ x_fine_rptapp, mtx_coarse, mtx_cond_coarse, d_coarse = rpta.reduce_and_solve(
     a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='partial')
 
 # %%
-symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
+# symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
+symmetric.rpta_symmetric(a_fine[0:32], b_fine[0:32], c_fine[0:32], d_fine[0:32], [[0,32]], 'partial')
 
 # %%
-B = np.array([[1, 2, 0, 0],
-              [2, 1, 2, 0],
-              [0, 2, 1, 2],
+B = np.array([[1, 3, 0, 0],
+              [2, 1, 3, 0],
+              [0, 2, 1, 3],
               [0, 0, 2, 1]])
 Bd = np.array([1, 1, 1, 1])
 Ba, Bb, Bc = matrix.numpy_matrix_to_bands(B)
@@ -129,4 +130,30 @@ print_downwards_elimination(Ba, Bb, Bc, Bd, 0, 4, 'none')
 print_upwards_elimination(Ba, Bb, Bc, Bd, 0, 4, 'none')
 
 # %%
-symmetric.rpta_symmetric(Ba, Bb, Bc, Bd, [[0,4]], 'none')
+symmetric.rpta_symmetric(Ba, Bb, Bc, Bd, [[0,4]], 'partial')
+
+# %%
+C = A[0:32, 0:32]
+Cd = d_fine[0:32]
+Ca, Cb, Cc = matrix.numpy_matrix_to_bands(C)
+
+# %%
+print_downwards_elimination(Ca, Cb, Cc, Cd, 0, 32, 'none')
+
+# %%
+print_upwards_elimination(Ca, Cb, Cc, Cd, 0, 32, 'none')
+
+# %%
+np.linalg.solve(C, Cd)
+
+# %%
+# symmetric.rpta_symmetric(Ca, Cb, Cc, Cd, [[0, 16], [16,32]], 'none')
+symmetric.rpta_symmetric(Ca, Cb, Cc, Cd, [[0, 32]], 'none')
+
+# %%
+# x_fine_rptapp_2, mtx_coarse_2, mtx_cond_coarse_2, d_coarse_2 = rpta.reduce_and_solve(
+#     Ca, Cb, Cc, Cd, [[0, 16], [16, 32]], 'none')
+x_fine_rptapp_2, mtx_coarse_2, mtx_cond_coarse_2, d_coarse_2 = rpta.reduce_and_solve(
+    Ca, Cb, Cc, Cd, [[0, 32]], 'none')
+
+#matrix.numpy_matrix_to_bands(mtx_coarse_2)
