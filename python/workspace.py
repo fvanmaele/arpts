@@ -74,7 +74,7 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
     
     for i in range(0, len(a_upper)):
         print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>20.6e}".format(
-            i, a_upper_rev[i], b_upper_rev[i], s_upper_rev[i], d_upper_rev[i]))
+            begin+i, a_upper_rev[i], b_upper_rev[i], s_upper_rev[i], d_upper_rev[i]))
     
     # for i, s_r in enumerate(symmetric.eliminate_band_iter(c_rev, b_rev, a_rev, d_rev, pivoting), start=1):
     #     print("{:2}: {:>20.6e} {:>20.6e} {:>20.6e} {:>5.1f} {:>20.6e}".format(
@@ -138,22 +138,28 @@ Cd = d_fine[0:32]
 Ca, Cb, Cc = matrix.numpy_matrix_to_bands(C)
 
 # %%
-print_downwards_elimination(Ca, Cb, Cc, Cd, 0, 32, 'none')
+print_downwards_elimination(Ca, Cb, Cc, Cd, 0, 16, 'none')
 
 # %%
-print_upwards_elimination(Ca, Cb, Cc, Cd, 0, 32, 'none')
+print_downwards_elimination(Ca, Cb, Cc, Cd, 16, 32, 'none')
+
+# %%
+print_upwards_elimination(Ca, Cb, Cc, Cd, 0, 16, 'none')
+
+# %%
+print_upwards_elimination(Ca, Cb, Cc, Cd, 16, 32, 'none')
 
 # %%
 np.linalg.solve(C, Cd)
 
 # %%
-# symmetric.rpta_symmetric(Ca, Cb, Cc, Cd, [[0, 16], [16,32]], 'none')
-symmetric.rpta_symmetric(Ca, Cb, Cc, Cd, [[0, 32]], 'none')
+symmetric.rpta_symmetric(Ca, Cb, Cc, Cd, [[0, 16], [16,32]], 'none')
+# symmetric.rpta_symmetric(Ca, Cb, Cc, Cd, [[0, 32]], 'none')
 
 # %%
-# x_fine_rptapp_2, mtx_coarse_2, mtx_cond_coarse_2, d_coarse_2 = rpta.reduce_and_solve(
-#     Ca, Cb, Cc, Cd, [[0, 16], [16, 32]], 'none')
 x_fine_rptapp_2, mtx_coarse_2, mtx_cond_coarse_2, d_coarse_2 = rpta.reduce_and_solve(
-    Ca, Cb, Cc, Cd, [[0, 32]], 'none')
+    Ca, Cb, Cc, Cd, [[0, 16], [16, 32]], 'none')
+# x_fine_rptapp_2, mtx_coarse_2, mtx_cond_coarse_2, d_coarse_2 = rpta.reduce_and_solve(
+#     Ca, Cb, Cc, Cd, [[0, 32]], 'none')
 
 #matrix.numpy_matrix_to_bands(mtx_coarse_2)
