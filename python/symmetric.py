@@ -8,6 +8,7 @@ Created on Thu Jul 14 17:11:15 2022
 
 import matrix
 import numpy as np
+import sys
 
 # %%
 def eliminate_band_iter(a, b, c, d, pivoting):
@@ -65,7 +66,6 @@ def eliminate_band_iter(a, b, c, d, pivoting):
 
         yield s_p
 
-
 def eliminate_band_expand(a, b, c, d, pivoting):
     M = len(a)
     s_new = [0.0] * M  # spike
@@ -81,6 +81,11 @@ def eliminate_band_expand(a, b, c, d, pivoting):
 
     return s_new, b_new, c_new, d_new
 
+def eliminate_band(a, b, c, d, pivoting):
+    for v in eliminate_band_iter(a, b, c, d, pivoting):
+        _ = v
+
+    return v[0], v[1], v[2], v[4]
 
 # %%
 # TODO: this only supports a single recursion step
@@ -95,32 +100,29 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
     for part_id, part_bounds in enumerate(partition):
         part_begin, part_end = part_bounds
         
-        # XXX: if we are not storing the vectors anyway, we can iterate over the elimination
-        # and save the last value
-
         # downwards elimination
-        s_lower, b_lower, c_lower, d_lower = eliminate_band_expand(
+        s_lower, b_lower, c_lower, d_lower = eliminate_band(
             a_fine[part_begin:part_end],
             b_fine[part_begin:part_end],
             c_fine[part_begin:part_end],
             d_fine[part_begin:part_end], pivoting)
 
-        a_coarse[2 * part_id + 1] = s_lower[-1]
-        b_coarse[2 * part_id + 1] = b_lower[-1]
-        c_coarse[2 * part_id + 1] = c_lower[-1]
-        d_coarse[2 * part_id + 1] = d_lower[-1]
+        a_coarse[2 * part_id + 1] = s_lower
+        b_coarse[2 * part_id + 1] = b_lower
+        c_coarse[2 * part_id + 1] = c_lower
+        d_coarse[2 * part_id + 1] = d_lower
 
         # upwards elimination
-        s_upper, b_upper, a_upper, d_upper = eliminate_band_expand(
+        s_upper, b_upper, a_upper, d_upper = eliminate_band(
             list(reversed(c_fine[part_begin:part_end])),
             list(reversed(b_fine[part_begin:part_end])),
             list(reversed(a_fine[part_begin:part_end])),
             list(reversed(d_fine[part_begin:part_end])), pivoting)
 
-        a_coarse[2 * part_id] = a_upper[-1]
-        b_coarse[2 * part_id] = b_upper[-1]
-        c_coarse[2 * part_id] = s_upper[-1]
-        d_coarse[2 * part_id] = d_upper[-1]
+        a_coarse[2 * part_id] = a_upper
+        b_coarse[2 * part_id] = b_upper
+        c_coarse[2 * part_id] = s_upper
+        d_coarse[2 * part_id] = d_upper
 
     # Solve coarse system (reduction step, solve interface between blocks)
     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
@@ -130,9 +132,17 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
     for part_id, part_bounds in enumerate(partition):
         part_begin, part_end = part_bounds
         
+        x0 = x_coarse[2*part_id]   # x_fine[part_begin]
+        xm = x_coarse[2*part_id+1] # x_fine[part_end]
+        x_fine.append(x0)
+        # print("{} {:>20.6e}".format(part_end, x0))
+
         # XXX: compute everything again, because I can't find an immediate way to make copies of the
         # arrays computed above - e.g. neither deepcopy() or copy() have any effect, and only the
         # arrays for the last partition are stored.
+        # XXX: if we are not storing the vectors anyway, we can iterate over the elimination
+        # and compute x_j on-demand
+        
         # downwards elimination
         s_lower, b_lower, c_lower, d_lower = eliminate_band_expand(
             a_fine[part_begin:part_end],
@@ -153,24 +163,78 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
         s_upper_rev = list(reversed(s_upper))
         d_upper_rev = list(reversed(d_upper))
 
-        x0 = x_coarse[2*part_id]   # x_fine[part_begin]
-        xm = x_coarse[2*part_id+1] # x_fine[part_end]
+        xjpp_prev = None
+        xjpp = None
+        det_j_prev = None
+        det_j = None
 
-        print("{} {:>20.6e}".format(part_id, x0))
         for idx, j in enumerate(range(part_begin+1, part_end-1), start=2):
-            # XXX: if we are not storing the vectors anyway, we can iterate over the elimination
-            # and compute x_j on-demand
-            mtx_j = np.array([[b_lower[idx-1], c_lower[idx-1]], 
-                              [a_upper_rev[idx], b_upper_rev[idx]]])
-            # print(np.linalg.cond(mtx_j))
-            rhs_j = np.array([d_lower[idx-1] - x0*s_lower[idx-1],
-                              d_upper_rev[idx] - xm*s_upper_rev[idx]])
-            # print(rhs_j)
-            xj, xjpp = np.linalg.solve(mtx_j, rhs_j)
-            # TODO: choose x_{j+1} depending on properties of the linear system (max det or min cond)
-            # print("{} {:>20.6e}  {:>20.6e}".format(part_id, xj, xjpp))
-            print("{} {:>20.6e}".format(part_id, xj))
+            if j == part_end-2:  # iteration end
+                # XXX: in this case we can either take the solution of the previous step, or solve
+                # x_{M-1} directly from x_{M}
+                assert(xjpp_prev is not None)
+                x_fine.append(xjpp_prev)
 
-        # x_fine.append()
-        print("{} {:>20.6e}".format(part_id, xm))
+            else:
+                mtx_j = np.array([[b_lower[idx-1], c_lower[idx-1]], 
+                                  [a_upper_rev[idx], b_upper_rev[idx]]])
+                rhs_j = np.array([d_lower[idx-1] - x0*s_lower[idx-1],
+                                  d_upper_rev[idx] - xm*s_upper_rev[idx]])
+                # invert 2x2 system
+                det_j = mtx_j[0][0]*mtx_j[1][1] - mtx_j[0][1]*mtx_j[1][0]
+                adj_j = np.array([[ mtx_j[1][1], -mtx_j[0][1]],
+                                  [-mtx_j[1][0],  mtx_j[0][0]]])
+                inv_j = 1/det_j * adj_j
+
+                # retrieve solutions
+                xj, xjpp = inv_j @ rhs_j
+
+                if xjpp_prev is not None:
+                    # Decide which solution to choose based on condition of linear system
+                    if abs(det_j_prev) < abs(det_j):
+                        x_fine.append(xj)
+                    else:
+                        x_fine.append(xjpp_prev)
+    
+                    # ratio = abs(det_j_prev) / abs(det_j)
+                    # if ratio > 10:
+                    #     print("diag: det changed with at least 1 order of magnitude", file=sys.stderr)
+                    #     print("{} (x = {}) vs. {} (x = {})".format(
+                    #         det_j_prev, xjpp_prev, det_j, xj), file=stderr)
+                else:
+                    x_fine.append(xj)
+    
+                # assign solution/det for next iteration
+                xjpp_prev = xjpp
+                det_j_prev = det_j
+
+            # xj, xjpp = np.linalg.solve(mtx_j, rhs_j)
+            print("{} {:>20.6e} {:>20.6e} {:>20.6e} {:>20.6e}".format(
+                j, xj, xjpp, det_j, np.linalg.cond(mtx_j)))
+
+        # print("{} {:>20.6e}".format(part_end, xm))
+        x_fine.append(xm)
+    
     return x_fine
+
+
+# %% Test cases
+if __name__ == "__main__" or not hasattr(sys, 'ps1'):
+    # Test for single partition
+    B = np.array([[1, 2, 0, 0],
+                  [2, 1, 2, 0],
+                  [0, 2, 1, 2],
+                  [0, 0, 2, 1]])
+    Ba, Bb, Bc = matrix.numpy_matrix_to_bands(B)
+    Bd = np.array([1]*4)
+
+    Bsol = rpta_symmetric(Ba, Bb, Bc, Bd, [[0,4]], 'partial')
+    assert(Bsol == [-1., 1., 1., -1.])
+
+    # Test for multiple partitions
+    B2 = np.vstack((np.hstack((B, np.zeros((4, 4)))), np.hstack((np.zeros((4,4)), B))))
+    B2a, B2b, B2c = matrix.numpy_matrix_to_bands(B2)
+    B2d = np.array([1]*8)
+
+    B2sol = rpta_symmetric(B2a, B2d, B2c, B2d, [[0,4], [4,8]], 'partial')
+    assert(B2sol == [-1., 1., 1., -1., -1., 1., 1., -1.])

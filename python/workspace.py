@@ -3,7 +3,7 @@
 """
 Created on Mon May 30 13:06:27 2022
 
-@author: archie
+@author: fvanmaele
 """
 
 # %%
@@ -27,7 +27,7 @@ from main_rows import main_rows
 
 
 # %% Linear system
-mtx_id = 1
+mtx_id = 26
 N_fine = 512
 
 A_sp = mmread('{}/mtx/{:02d}-{}'.format(source_dir, mtx_id, N_fine))
@@ -41,6 +41,9 @@ a_fine, b_fine, c_fine = matrix.numpy_matrix_to_bands(A)
 x_fine = np.random.normal(3, 1, N_fine)
 d_fine = np.matmul(A, x_fine)
 
+# %%
+def cond(A):
+    print(np.format_float_scientific(np.linalg.cond(A)))
 
 # %%
 def print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoting):
@@ -82,84 +85,20 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
 
 
 # %%
-print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
+# print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
 
 # %%
-print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
-
-# %%
-# def test_rpta_symm(a_fine, b_fine, c_fine, d_fine):
-#     static_partition = partition.generate_static_partition(512, 32)
-#     N_coarse = len(static_partition)*2
-#     a_coarse = [0.0] * N_coarse
-#     b_coarse = [0.0] * N_coarse
-#     c_coarse = [0.0] * N_coarse
-#     d_coarse = [0.0] * N_coarse
-
-#     rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, 
-#                        a_coarse, b_coarse, c_coarse, d_coarse, static_partition, 'partial')
-#     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
-
-#     mtx_coarse_2 = symmetric.rpta_symmetric(
-#         a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
-#     assert(np.all(mtx_coarse == mtx_coarse_2))
-
-# test_rpta_symm(a_fine, b_fine, c_fine, d_fine)
+# print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
 
 # %%
 static_partition = partition.generate_static_partition(512, 32)
-x_fine_rptapp, mtx_coarse, mtx_cond_coarse, d_coarse = rpta.reduce_and_solve(
-    a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='partial')
+x_fine_rpta, mtx_coarse, mtx_cond_coarse, d_coarse = rpta.reduce_and_solve(
+    a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='scaled_partial')
+fre_rpta = np.linalg.norm(x_fine_rpta - x_fine) / np.linalg.norm(x_fine)
+fre_rpta
 
 # %%
 # symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
-symmetric.rpta_symmetric(a_fine[0:32], b_fine[0:32], c_fine[0:32], d_fine[0:32], [[0,32]], 'partial')
-
-# %%
-B = np.array([[1, 3, 0, 0],
-              [2, 1, 3, 0],
-              [0, 2, 1, 3],
-              [0, 0, 2, 1]])
-Bd = np.array([1, 1, 1, 1])
-Ba, Bb, Bc = matrix.numpy_matrix_to_bands(B)
-
-# %%
-print_downwards_elimination(Ba, Bb, Bc, Bd, 0, 4, 'none')
-
-# %%
-print_upwards_elimination(Ba, Bb, Bc, Bd, 0, 4, 'none')
-
-# %%
-symmetric.rpta_symmetric(Ba, Bb, Bc, Bd, [[0,4]], 'partial')
-
-# %%
-C = A[0:32, 0:32]
-Cd = d_fine[0:32]
-Ca, Cb, Cc = matrix.numpy_matrix_to_bands(C)
-
-# %%
-print_downwards_elimination(Ca, Cb, Cc, Cd, 0, 16, 'none')
-
-# %%
-print_downwards_elimination(Ca, Cb, Cc, Cd, 16, 32, 'none')
-
-# %%
-print_upwards_elimination(Ca, Cb, Cc, Cd, 0, 16, 'none')
-
-# %%
-print_upwards_elimination(Ca, Cb, Cc, Cd, 16, 32, 'none')
-
-# %%
-np.linalg.solve(C, Cd)
-
-# %%
-symmetric.rpta_symmetric(Ca, Cb, Cc, Cd, [[0, 16], [16,32]], 'none')
-# symmetric.rpta_symmetric(Ca, Cb, Cc, Cd, [[0, 32]], 'none')
-
-# %%
-x_fine_rptapp_2, mtx_coarse_2, mtx_cond_coarse_2, d_coarse_2 = rpta.reduce_and_solve(
-    Ca, Cb, Cc, Cd, [[0, 16], [16, 32]], 'none')
-# x_fine_rptapp_2, mtx_coarse_2, mtx_cond_coarse_2, d_coarse_2 = rpta.reduce_and_solve(
-#     Ca, Cb, Cc, Cd, [[0, 32]], 'none')
-
-#matrix.numpy_matrix_to_bands(mtx_coarse_2)
+x_fine_symm = symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'scaled_partial')
+fre_symm = np.linalg.norm(x_fine_symm - x_fine) / np.linalg.norm(x_fine)
+fre_symm

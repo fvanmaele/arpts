@@ -109,6 +109,10 @@ function A = generate_matrix(ID, N)
             b = 1e-8*ones(N, 1);
             A = tridiag(a_norm, b, a_norm);
 
+        case 26 % 14g - lower condition
+            b = 1e-2*ones(N, 1);
+            A = tridiag(a_unif, b, c_unif);
+
         otherwise
             error('invalid ID specified')
     end
