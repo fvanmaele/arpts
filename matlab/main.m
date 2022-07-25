@@ -9,7 +9,7 @@ end
 
 %% Additional cases
 for N = [512 2048]
-    for Id = 21:26
+    for Id = 21:30
         gen_matrix(Id, N);
     end
 end

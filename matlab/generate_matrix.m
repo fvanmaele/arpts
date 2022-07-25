@@ -113,6 +113,18 @@ function A = generate_matrix(ID, N)
             b = 1e-2*ones(N, 1);
             A = tridiag(a_unif, b, c_unif);
 
+        case 27 % 8b
+            A = gallery('randsvd', N, 1e8, 2, 1, 1);
+
+        case 28 % 9b
+            A = gallery('randsvd', N, 1e8, 3, 1, 1);
+
+        case 29 % 10b
+            A = gallery('randsvd', N, 1e8, 1, 1, 1);
+        
+        case 30 % 11b
+            A = gallery('randsvd', N, 1e8, 4, 1, 1);
+
         otherwise
             error('invalid ID specified')
     end
