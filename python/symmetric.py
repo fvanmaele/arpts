@@ -3,7 +3,7 @@
 """
 Created on Thu Jul 14 17:11:15 2022
 
-@author: archie
+@author: ferdinand
 """
 
 import matrix
@@ -126,6 +126,7 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
 
     # Solve coarse system (reduction step, solve interface between blocks)
     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+    mtx_cond_coarse = np.linalg.cond(mtx_coarse)
     x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
 
     x_fine = [] # solution of fine system
@@ -140,6 +141,7 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
         # XXX: compute everything again, because I can't find an immediate way to make copies of the
         # arrays computed above - e.g. neither deepcopy() or copy() have any effect, and only the
         # arrays for the last partition are stored.
+
         # XXX: if we are not storing the vectors anyway, we can iterate over the elimination
         # and compute x_j on-demand
         
@@ -180,6 +182,7 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
                                   [a_upper_rev[idx], b_upper_rev[idx]]])
                 rhs_j = np.array([d_lower[idx-1] - x0*s_lower[idx-1],
                                   d_upper_rev[idx] - xm*s_upper_rev[idx]])
+
                 # invert 2x2 system
                 det_j = mtx_j[0][0]*mtx_j[1][1] - mtx_j[0][1]*mtx_j[1][0]
                 adj_j = np.array([[ mtx_j[1][1], -mtx_j[0][1]],
@@ -190,17 +193,11 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
                 xj, xjpp = inv_j @ rhs_j
 
                 if xjpp_prev is not None:
-                    # Decide which solution to choose based on condition of linear system
+                    # Heuristic: choose solution based on condition of linear system
                     if abs(det_j_prev) < abs(det_j):
                         x_fine.append(xj)
                     else:
                         x_fine.append(xjpp_prev)
-    
-                    # ratio = abs(det_j_prev) / abs(det_j)
-                    # if ratio > 10:
-                    #     print("diag: det changed with at least 1 order of magnitude", file=sys.stderr)
-                    #     print("{} (x = {}) vs. {} (x = {})".format(
-                    #         det_j_prev, xjpp_prev, det_j, xj), file=stderr)
                 else:
                     x_fine.append(xj)
     
@@ -209,17 +206,17 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
                 det_j_prev = det_j
 
             # xj, xjpp = np.linalg.solve(mtx_j, rhs_j)
-            print("{} {:>20.6e} {:>20.6e} {:>20.6e} {:>20.6e}".format(
-                j, xj, xjpp, det_j, np.linalg.cond(mtx_j)))
+            # print("{} {:>20.6e} {:>20.6e} {:>20.6e} {:>20.6e}".format(
+            #     j, xj, xjpp, det_j, np.linalg.cond(mtx_j)))
 
         # print("{} {:>20.6e}".format(part_end, xm))
         x_fine.append(xm)
     
-    return x_fine
+    return x_fine, mtx_coarse, mtx_cond_coarse
 
 
 # %% Test cases
-if __name__ == "__main__" or not hasattr(sys, 'ps1'):
+if __name__ == "__main__":
     # Test for single partition
     B = np.array([[1, 2, 0, 0],
                   [2, 1, 2, 0],
@@ -228,13 +225,13 @@ if __name__ == "__main__" or not hasattr(sys, 'ps1'):
     Ba, Bb, Bc = matrix.numpy_matrix_to_bands(B)
     Bd = np.array([1]*4)
 
-    Bsol = rpta_symmetric(Ba, Bb, Bc, Bd, [[0,4]], 'partial')
-    assert(Bsol == [-1., 1., 1., -1.])
+    Bsol, _, _ = rpta_symmetric(Ba, Bb, Bc, Bd, [[0,4]], 'partial')
+    assert((np.round(Bsol, decimals=10) == np.array([-1., 1., 1., -1.])).all())
 
     # Test for multiple partitions
     B2 = np.vstack((np.hstack((B, np.zeros((4, 4)))), np.hstack((np.zeros((4,4)), B))))
     B2a, B2b, B2c = matrix.numpy_matrix_to_bands(B2)
     B2d = np.array([1]*8)
 
-    B2sol = rpta_symmetric(B2a, B2d, B2c, B2d, [[0,4], [4,8]], 'partial')
-    assert(B2sol == [-1., 1., 1., -1., -1., 1., 1., -1.])
+    B2sol, _, _ = rpta_symmetric(B2a, B2d, B2c, B2d, [[0,4], [4,8]], 'partial')
+    assert((np.round(B2sol, decimals=10) == np.array([-1., 1., 1., -1., -1., 1., 1., -1.])).all())

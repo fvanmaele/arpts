@@ -27,7 +27,7 @@ from main_rows import main_rows
 
 
 # %% Linear system
-mtx_id = 26
+mtx_id = 30
 N_fine = 512
 
 A_sp = mmread('{}/mtx/{:02d}-{}'.format(source_dir, mtx_id, N_fine))
@@ -36,7 +36,6 @@ try:
 except AttributeError:
     A = np.asarray(A_sp)
 
-# %%
 a_fine, b_fine, c_fine = matrix.numpy_matrix_to_bands(A)
 x_fine = np.random.normal(3, 1, N_fine)
 d_fine = np.matmul(A, x_fine)
@@ -91,7 +90,7 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
 # print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
 
 # %%
-static_partition = partition.generate_static_partition(512, 32)
+static_partition = partition.generate_static_partition(512, 33)
 x_fine_rpta, mtx_coarse, mtx_cond_coarse, d_coarse = rpta.reduce_and_solve(
     a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='scaled_partial')
 fre_rpta = np.linalg.norm(x_fine_rpta - x_fine) / np.linalg.norm(x_fine)

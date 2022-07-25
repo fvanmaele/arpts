@@ -7,7 +7,7 @@ Created on Sun Apr 24 11:47:59 2022
 """
 import argparse
 import numpy as np
-import matrix, partition, rpta
+import matrix, rpta, symmetric
 
 from scipy.io import mmread
 
@@ -42,17 +42,22 @@ def main_setup(mtx_id, N_fine):
 
 
 def main_cond_coarse(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                     lim_lo_range, lim_hi_range, min_size, pivoting):
+                     lim_lo_range, lim_hi_range, min_size, pivoting, use_symmetric):
     for lim_lo in lim_lo_range:
         for lim_hi in lim_hi_range:
             if lim_hi - lim_lo < min_size:
                 continue
 
             rpta_partition = rpta.rptapp_reduce_dynamic(
-                a_fine, b_fine, c_fine, d_fine, lim_lo, lim_hi, threshold=0)
+                a_fine, b_fine, c_fine, d_fine, lim_lo, lim_hi, pivoting=pivoting)
 
-            x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
-                a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
+            # XXX: this step is shared between all main_*
+            if use_symmetric is True:
+                x_fine_rptapp, mtx_coarse, mtx_cond_coarse = symmetric.rpta_symmetric(
+                    a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
+            else:
+                x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+                    a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
         
             if x_fine_rptapp is not None:
                 fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
@@ -71,6 +76,7 @@ if __name__ == "__main__":
     parser.add_argument("--min-size", type=int, default=8, help="minimal block size")
     parser.add_argument("--seed", type=int, default=0, help="value for np.random.seed()")
     parser.add_argument("--pivoting", type=str, default='scaled_partial', help="type of pivoting used")
+    parser.add_argument("--symmetric", action='store_true', help='alternative substitution method')
     args = parser.parse_args()
     np.random.seed(args.seed)
 
@@ -78,11 +84,13 @@ if __name__ == "__main__":
     lim_lo_range = str_to_range(args.lim_lo, '-')
     lim_hi_range = str_to_range(args.lim_hi, '-')
     print(lim_lo_range)
+    
     # Generate linear system
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
 
     for sample in main_cond_coarse(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
-                                   lim_lo_range, lim_hi_range, args.min_size, args.pivoting):
+                                   lim_lo_range, lim_hi_range, args.min_size, args.pivoting, args.symmetric):
         _, lim_lo, lim_hi, fre, _, mtx_cond_coarse, _ = sample
+
         print("{},{},{},{},{:e},{:e}".format(
             args.mtx_id, args.N_fine, lim_lo, lim_hi, fre, mtx_cond_coarse))

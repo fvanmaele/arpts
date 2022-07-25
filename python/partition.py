@@ -103,7 +103,7 @@ def randint_normal(size, mean=0, sd=1, low=0, upp=10):
     return get_truncated_normal(mean, sd, low, upp).rvs(size).round().astype(int)
 
 
-def generate_random_partition_normal(N, part_min, part_max, part_mean, part_sd=2):
+def generate_random_partition_normal(N, part_min, part_max, part_mean, part_sd):
     assert(part_min < part_max)
     assert(part_min > 0)
     assert(part_max < N-1)

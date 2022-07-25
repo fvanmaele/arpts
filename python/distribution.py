@@ -7,7 +7,7 @@ Created on Sat Apr 23 20:18:23 2022
 """
 import argparse
 import numpy as np
-import matrix, rpta
+import matrix, rpta, symmetric
 import matplotlib.pyplot as plt
 import json
 
@@ -69,8 +69,26 @@ def generate_test_case(test_case, a_fine, b_fine, c_fine, d_fine, x_fine, *main_
     return generate_min_partition(generator, extractor)    
 
 
+# XXX: generalization of main_* which takes a partition as argument
+def main_partition(a_fine, b_fine, c_fine, d_fine, x_fine, rpta_partition, pivoting, use_symmetric):
+    if use_symmetric is True:
+        x_fine_rptapp, mtx_coarse, mtx_cond_coarse = symmetric.rpta_symmetric(
+            a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
+    else:
+        x_fine_rptapp, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
+            a_fine, b_fine, c_fine, d_fine, rpta_partition, pivoting=pivoting)
+
+    if x_fine_rptapp is not None:
+        fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+    else:
+        fre = np.Inf
+
+    return x_fine_rptapp, mtx_coarse, mtx_cond_coarse, fre
+
+
 # TODO: allow to choose the distribution of the generated solutions
-def run_trials(mtx, a_fine, b_fine, c_fine, part, label, gen_samples, n_trials=5000):
+def run_trials(mtx, a_fine, b_fine, c_fine, part, label, gen_samples, 
+               n_trials=5000, pivoting='scaled_partial', use_symmetric=False):
     trials = [None]*n_trials
     N_fine = len(a_fine)
 
@@ -79,12 +97,12 @@ def run_trials(mtx, a_fine, b_fine, c_fine, part, label, gen_samples, n_trials=5
         d_fine_new = np.matmul(mtx, x_fine_new)
         
         # Solve linear system with new right-hand side
-        x_fine_rptapp_new, mtx_coarse_new, mtx_cond_coarse_new = rpta.reduce_and_solve(
-            a_fine, b_fine, c_fine, d_fine_new, part, threshold=0)
+        x_fine_rptapp_new, mtx_coarse_new, mtx_cond_coarse_new, fre_new = main_partition(
+            a_fine, b_fine, c_fine, d_fine_new, x_fine_new, part, pivoting, use_symmetric)
         
         if k % 20 == 0:
             print("trial #{}, {}".format(k, label))
-        trials[k] = np.linalg.norm(x_fine_rptapp_new - x_fine_new) / np.linalg.norm(x_fine_new)
+        trials[k] = fre_new
 
     return trials
 
@@ -131,10 +149,14 @@ def main():
     parser.add_argument("--high", type=float, default=1, help="upper boundary of generated solutions (--distribution uniform)")
     parser.add_argument("--distribution", type=str, default='normal', help="distribution of generated solutions ('normal' or 'uniform')")
     parser.add_argument("--distribution-setup", type=str, default='normal', help="distribution for solution of generated partition")
+    parser.add_argument("--pivoting", type=str, default='scaled_partial', help="type of pivoting employed ('none', 'partial' or 'scaled_partial'")
+    parser.add_argument("--symmetric", action='store_true', help="alternative substitution method")
     # options for random partition
     parser.add_argument("--rand-n-samples", type=int, default=1000, help="amount of samples for randomly generated partitions")
     parser.add_argument("--rand-min-part", type=int, default=32, help="minimal size of randomly generated partitions")
     parser.add_argument("--rand-max-part", type=int, default=100, help="maximal size of randomly generated partitions")
+    parser.add_argument("--rand-mean", type=int, default=None, help="mean size of randomly generated partitions (--distribution normal)")
+    parser.add_argument("--rand-sd", type=int, default=2, help="standard deviation of randomly generated partitions (--distribution normal)")
     # options for static partition
     parser.add_argument("--static-M-min", type=int, default=16, help="minimal block size for fixed partitions")
     parser.add_argument("--static-M-max", type=int, default=64, help="maximal block size for fixed partitions")
@@ -143,7 +165,11 @@ def main():
     args = parser.parse_args()
     np.random.seed(args.seed)
     plt.rcParams["figure.figsize"] = (12,8)
-    
+
+    # Set mean partition size based on defined min/max size
+    if args.rand_mean is None:
+        args.rand_mean = np.floor((args.rand_max_part - args.rand_min_part) / 2)
+
     # Define distribution of generated solutions
     if args.distribution == "normal":
         gen_samples = lambda N : np.random.normal(args.mean, args.stddev, N)
@@ -169,35 +195,55 @@ def main():
 
     # Comparison to static partition with fixed M
     static = [S for S in main_static(
-        len(a_fine), a_fine, b_fine, c_fine, d_fine, x_fine, [args.M], 6)]
-    static_fre, static_part = static[0][2], static[0][5]
+        len(a_fine), a_fine, b_fine, c_fine, d_fine, x_fine, [args.M], 6, 
+        args.pivoting, args.symmetric)]
+    static_part = static[0][5]
+    # static_fre, static_part = static[0][2], static[0][5]
 
     # Generate dynamic partition from one sample
     min_fre_rand, min_fre_rand_part, min_cond_rand, min_cond_rand_part = generate_test_case(
         'random', a_fine, b_fine, c_fine, d_fine, x_fine, 
-        args.rand_n_samples, args.rand_min_part, args.rand_max_part)
+        args.rand_n_samples, args.distribution, args.rand_min_part, args.rand_max_part, args.rand_mean, args.rand_sd, 
+        args.pivoting, args.symmetric)
+
     min_fre_reduce, min_fre_reduce_part, min_cond_reduce, min_cond_reduce_part = generate_test_case(
         'reduce', a_fine, b_fine, c_fine, d_fine, x_fine, 
-        list(range(16,41)), list(range(22,73)), 6)
+        list(range(16,41)), list(range(22,73)), 6, 
+        args.pivoting, args.symmetric)
+    
     min_fre_static, min_fre_static_part, min_cond_static, min_cond_static_part = generate_test_case(
         'static', a_fine, b_fine, c_fine, d_fine, x_fine, 
-        list(range(args.static_M_min,args.static_M_max+1)), 6)
+        list(range(args.static_M_min,args.static_M_max+1)), 6, 
+        args.pivoting, args.symmetric)
 
     # Verify generated partition on a set of samples (x, from same distribution)
     trials_static = run_trials(
-        mtx, a_fine, b_fine, c_fine, static_part, "static", gen_samples, args.n_trials)
+        mtx, a_fine, b_fine, c_fine, static_part, "static", gen_samples, 
+        args.n_trials, args.pivoting, args.symmetric)
+    
     trials_rand_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_rand_part, "random + fre", gen_samples, args.n_trials)
+        mtx, a_fine, b_fine, c_fine, min_fre_rand_part, "random + fre", gen_samples, 
+        args.n_trials, args.pivoting, args.symmetric)
+    
     trials_rand_cond = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_cond_rand_part, "random + cond", gen_samples, args.n_trials)
+        mtx, a_fine, b_fine, c_fine, min_cond_rand_part, "random + cond", gen_samples, 
+        args.n_trials, args.pivoting, args.symmetric)
+    
     trials_reduce_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_reduce_part, "reduce + fre", gen_samples, args.n_trials)
+        mtx, a_fine, b_fine, c_fine, min_fre_reduce_part, "reduce + fre", gen_samples, 
+        args.n_trials, args.pivoting, args.symmetric)
+    
     trials_reduce_cond = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_cond_reduce_part, "reduce + cond", gen_samples, args.n_trials)
+        mtx, a_fine, b_fine, c_fine, min_cond_reduce_part, "reduce + cond", gen_samples, 
+        args.n_trials, args.pivoting, args.symmetric)
+    
     trials_static_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_static_part, "static + fre", gen_samples, args.n_trials)
+        mtx, a_fine, b_fine, c_fine, min_fre_static_part, "static + fre", gen_samples, 
+        args.n_trials, args.pivoting, args.symmetric)
+    
     trials_static_cond = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_cond_static_part, "static + cond", gen_samples, args.n_trials)
+        mtx, a_fine, b_fine, c_fine, min_cond_static_part, "static + cond", gen_samples, 
+        args.n_trials, args.pivoting, args.symmetric)
 
     # Plot empirical cumulative distribution
     trials_d = {
