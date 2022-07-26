@@ -279,8 +279,11 @@ def rptapp_reduce_dynamic(a_fine, b_fine, c_fine, d_fine, part_min, part_max,
         partition_begin = min(partition_begin + part_min + conds_argmin, N)
     
     # Append last partition
-    if partition_begin < N:
+    if partition_begin < N and N - partition_begin >= part_min:
         partition.append([partition_begin, N])
+
+    elif partition_begin < N:
+        partition[-1] = partition[-1][0], N
 
     return partition
 
