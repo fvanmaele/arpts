@@ -11,6 +11,17 @@ import numpy as np
 import sys
 
 # %%
+import pyfma  # wrapper for std::fma (<cmath>)
+
+# cf. https://hal.inria.fr/ensl-00649347/en
+def kahan_det(a, b, c, d):
+    w = b*c
+    e = pyfma.fma(-b, c, w)
+    f = pyfma.fma(a, d, -w)
+
+    return f + e
+
+# %%
 def eliminate_band_iter(a, b, c, d, pivoting):
     M = len(a)
     assert(M > 1) # band should at least have one element
@@ -189,13 +200,17 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
                                   d_upper_rev[idx] - xm*s_upper_rev[idx]])
 
                 # invert 2x2 system
-                det_j = mtx_j[0][0]*mtx_j[1][1] - mtx_j[0][1]*mtx_j[1][0]
+                # det_j = mtx_j[0][0]*mtx_j[1][1] - mtx_j[0][1]*mtx_j[1][0]
+                det_j = kahan_det(mtx_j[0][0], mtx_j[0][1], mtx_j[1][0], mtx_j[1][1])
                 adj_j = np.array([[ mtx_j[1][1], -mtx_j[0][1]],
                                   [-mtx_j[1][0],  mtx_j[0][0]]])
                 inv_j = 1/det_j * adj_j
-
+                
                 # retrieve solutions
                 xj, xjpp = inv_j @ rhs_j
+
+                # alternative: pivoting
+                # xj, xjpp = np.linalg.solve(mtx_j, rhs_j)
 
                 if xjpp_prev is not None:
                     # Heuristic: choose solution based on condition of linear system

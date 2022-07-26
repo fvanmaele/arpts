@@ -91,13 +91,13 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
 
 # %%
 static_partition = partition.generate_static_partition(512, 33)
-x_fine_rpta, mtx_coarse, mtx_cond_coarse, d_coarse = rpta.reduce_and_solve(
+x_fine_rpta, mtx_coarse, mtx_cond_coarse = rpta.reduce_and_solve(
     a_fine, b_fine, c_fine, d_fine, static_partition, pivoting='scaled_partial')
 fre_rpta = np.linalg.norm(x_fine_rpta - x_fine) / np.linalg.norm(x_fine)
 fre_rpta
 
 # %%
 # symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'partial')
-x_fine_symm = symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'scaled_partial')
+x_fine_symm, _, _ = symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'scaled_partial')
 fre_symm = np.linalg.norm(x_fine_symm - x_fine) / np.linalg.norm(x_fine)
 fre_symm
