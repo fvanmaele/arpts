@@ -127,7 +127,12 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
     # Solve coarse system (reduction step, solve interface between blocks)
     mtx_coarse = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
     mtx_cond_coarse = np.linalg.cond(mtx_coarse)
-    x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
+    
+    try:
+        x_coarse = np.linalg.solve(mtx_coarse, d_coarse)
+    except np.linalg.LinAlgError:
+        print("warning: Singular matrix detected", file=sys.stderr)
+        return None, None, np.inf
 
     x_fine = [] # solution of fine system
     for part_id, part_bounds in enumerate(partition):
