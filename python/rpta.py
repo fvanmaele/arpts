@@ -314,4 +314,4 @@ def reduce_and_solve(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled
         print("warning: Singular matrix detected", file=sys.stderr)
         x_fine_rptapp, mtx_coarse, mtx_cond_coarse = None, None, np.Inf
         
-    return x_fine_rptapp, mtx_coarse, mtx_cond_coarse, d_coarse
+    return x_fine_rptapp, mtx_coarse, mtx_cond_coarse

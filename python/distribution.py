@@ -155,8 +155,9 @@ def main():
     parser.add_argument("--rand-n-samples", type=int, default=1000, help="amount of samples for randomly generated partitions")
     parser.add_argument("--rand-min-part", type=int, default=32, help="minimal size of randomly generated partitions")
     parser.add_argument("--rand-max-part", type=int, default=100, help="maximal size of randomly generated partitions")
-    parser.add_argument("--rand-mean", type=int, default=None, help="mean size of randomly generated partitions (--distribution normal)")
-    parser.add_argument("--rand-sd", type=int, default=2, help="standard deviation of randomly generated partitions (--distribution normal)")
+    parser.add_argument("--rand-dist", type=str, default='uniform', help="distribution of random partition boundaries")
+    parser.add_argument("--rand-mean", type=int, default=None, help="mean size of randomly generated partitions (--rand-dist normal)")
+    parser.add_argument("--rand-sd", type=int, default=2, help="standard deviation of randomly generated partitions (--rand-dist normal)")
     # options for static partition
     parser.add_argument("--static-M-min", type=int, default=16, help="minimal block size for fixed partitions")
     parser.add_argument("--static-M-max", type=int, default=64, help="maximal block size for fixed partitions")
@@ -194,6 +195,7 @@ def main():
     a_fine, b_fine, c_fine, x_fine, d_fine, mtx = setup(args.mtx_id, args.N_fine, gen_samples_part)
 
     # Comparison to static partition with fixed M
+    # XXX: always use non-symmetric substitution for this?
     static = [S for S in main_static(
         len(a_fine), a_fine, b_fine, c_fine, d_fine, x_fine, [args.M], 6, 
         args.pivoting, args.symmetric)]
@@ -203,7 +205,7 @@ def main():
     # Generate dynamic partition from one sample
     min_fre_rand, min_fre_rand_part, min_cond_rand, min_cond_rand_part = generate_test_case(
         'random', a_fine, b_fine, c_fine, d_fine, x_fine, 
-        args.rand_n_samples, args.distribution, args.rand_min_part, args.rand_max_part, args.rand_mean, args.rand_sd, 
+        args.rand_n_samples, args.rand_dist, args.rand_min_part, args.rand_max_part, args.rand_mean, args.rand_sd, 
         args.pivoting, args.symmetric)
 
     min_fre_reduce, min_fre_reduce_part, min_cond_reduce, min_cond_reduce_part = generate_test_case(
