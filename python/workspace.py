@@ -27,7 +27,7 @@ from main_rows import main_rows
 
 
 # %% Linear system
-mtx_id = 30
+mtx_id = 26
 N_fine = 512
 
 A_sp = mmread('{}/mtx/{:02d}-{}'.format(source_dir, mtx_id, N_fine))
@@ -101,3 +101,61 @@ fre_rpta
 x_fine_symm, _, _ = symmetric.rpta_symmetric(a_fine, b_fine, c_fine, d_fine, static_partition, 'scaled_partial')
 fre_symm = np.linalg.norm(x_fine_symm - x_fine) / np.linalg.norm(x_fine)
 fre_symm
+
+# %%
+max_part = 40
+min_part = 20
+n_sliding_window = 4
+dynpart_interface = []
+
+def part_sliding_window(a_fine, b_fine, c_fine, part_begin, min_part, max_part, n_sliding_window):
+    argmin_spike_rel_sum = [None, None]
+    begin_offset = min_part-1
+    min_spike_rel_sum = np.Inf
+    
+    for k in range(part_begin+begin_offset, part_begin+max_part+n_sliding_window):
+        for ks in range(k+1, k+1+n_sliding_window):  # k+1: upper spike for part P, lower spike for part P+1
+            part_upper_spike_rel = abs(c_fine[k]) / np.max([abs(a_fine[k]), abs(b_fine[k]), abs(c_fine[k])])
+            next_part_lower_spike_rel = abs(a_fine[ks]) / np.max([abs(a_fine[ks]), abs(b_fine[ks]), abs(c_fine[ks])])
+            spike_rel_sum = part_upper_spike_rel + next_part_lower_spike_rel
+            
+            if spike_rel_sum < min_spike_rel_sum:
+                min_spike_rel_sum = spike_rel_sum
+                argmin_spike_rel_sum = [k, ks]
+                print(k, ks, min_spike_rel_sum)
+    
+    return argmin_spike_rel_sum
+
+# %%
+P = part_sliding_window(a_fine, b_fine, c_fine, 0, min_part, max_part, n_sliding_window)
+dynpart_interface.append(P)
+
+# %%
+# TODO: iterate until partition M-1, then append
+part_begin = dynpart_interface[-1][1]
+P = part_sliding_window(a_fine, b_fine, c_fine, part_begin, min_part, max_part, n_sliding_window)
+dynpart_interface.append(P)
+dynpart_interface
+
+# %%
+dynpart_interface = [[35, 39],
+ [80, 84],
+ [115, 118],
+ [144, 148],
+ [189, 193],
+ [228, 232],
+ [263, 267],
+ [286, 289],
+ [332, 334],
+ [373, 374],
+ [393, 395],
+ [437, 441],
+ [463, 465],
+ [499, 502]]
+
+# TODO: Convert interfaces to coarse system
+# dynpart_sparse = []
+# part_begin = 0
+# for P in dynpart_sparse:
+#     dynpart_sparse.append([part_begin, P[0]])
+#     dynpart_sparse.append([])
