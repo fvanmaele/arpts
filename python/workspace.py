@@ -106,18 +106,19 @@ fre_symm
 max_part = 40
 min_part = 20
 n_sliding_window = 4
-dynpart_interface = []
 
 def part_sliding_window(a_fine, b_fine, c_fine, part_begin, min_part, max_part, n_sliding_window):
+    N = len(a_fine)
     argmin_spike_rel_sum = [None, None]
     begin_offset = min_part-1
     min_spike_rel_sum = np.Inf
     
-    for k in range(part_begin+begin_offset, part_begin+max_part+n_sliding_window):
-        for ks in range(k+1, k+1+n_sliding_window):  # k+1: upper spike for part P, lower spike for part P+1
-            part_upper_spike_rel = abs(c_fine[k]) / np.max([abs(a_fine[k]), abs(b_fine[k]), abs(c_fine[k])])
-            next_part_lower_spike_rel = abs(a_fine[ks]) / np.max([abs(a_fine[ks]), abs(b_fine[ks]), abs(c_fine[ks])])
-            spike_rel_sum = part_upper_spike_rel + next_part_lower_spike_rel
+    for k in range(part_begin+begin_offset, min(N, part_begin+max_part+n_sliding_window)):
+        part_lower_spike_rel = abs(c_fine[k]) / np.max([abs(a_fine[k]), abs(b_fine[k]), abs(c_fine[k])])
+
+        for ks in range(k+2, min(N, k+2+n_sliding_window)):  # XXX: k+2: offset for eliminate_band starting at a[1]
+            next_part_upper_spike_rel = abs(a_fine[ks]) / np.max([abs(a_fine[ks]), abs(b_fine[ks]), abs(c_fine[ks])])
+            spike_rel_sum = part_lower_spike_rel + next_part_upper_spike_rel
             
             if spike_rel_sum < min_spike_rel_sum:
                 min_spike_rel_sum = spike_rel_sum
@@ -127,35 +128,34 @@ def part_sliding_window(a_fine, b_fine, c_fine, part_begin, min_part, max_part, 
     return argmin_spike_rel_sum
 
 # %%
+dynpart_interface = []
 P = part_sliding_window(a_fine, b_fine, c_fine, 0, min_part, max_part, n_sliding_window)
 dynpart_interface.append(P)
 
 # %%
-# TODO: iterate until partition M-1, then append
-part_begin = dynpart_interface[-1][1]
-P = part_sliding_window(a_fine, b_fine, c_fine, part_begin, min_part, max_part, n_sliding_window)
-dynpart_interface.append(P)
-dynpart_interface
+while N_fine - dynpart_interface[-1][1] > max_part:
+    part_begin = dynpart_interface[-1][1]
+    P = part_sliding_window(a_fine, b_fine, c_fine, part_begin, min_part, max_part, n_sliding_window)
+    dynpart_interface.append(P)
 
-# %%
-dynpart_interface = [[35, 39],
- [80, 84],
- [115, 118],
- [144, 148],
- [189, 193],
- [228, 232],
- [263, 267],
- [286, 289],
- [332, 334],
- [373, 374],
- [393, 395],
- [437, 441],
- [463, 465],
- [499, 502]]
+# %% Convert interfaces to partition (half-open intervals)
+dynpart = [[0, dynpart_interface[0][0]+2]]
+for i in range(len(dynpart_interface)-1):
+    ipp = i+1
+    dynpart.append([dynpart_interface[i][1], dynpart_interface[ipp][0]+2])
 
-# TODO: Convert interfaces to coarse system
-# dynpart_sparse = []
-# part_begin = 0
-# for P in dynpart_sparse:
-#     dynpart_sparse.append([part_begin, P[0]])
-#     dynpart_sparse.append([])
+if N_fine - dynpart[-1][1] < min_part:
+    dynpart[-1][1] = N_fine
+
+# %% Convert to coarse system, keeping track which equations are from the original system
+N_coarse = len(dynpart)*2
+a_coarse = np.zeros(N_coarse)
+b_coarse = np.zeros(N_coarse)
+c_coarse = np.zeros(N_coarse)
+d_coarse = np.zeros(N_coarse)
+
+rpta.rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse,
+                   dynpart, 'scaled_partial', threshold=0)
+mtx_coarse_partial = matrix.bands_to_numpy_matrix(a_coarse, b_coarse, c_coarse)
+
+# %% TODO: Append missing rows from original system
