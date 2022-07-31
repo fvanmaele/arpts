@@ -10,6 +10,7 @@ import numpy as np
 import matrix, rpta, symmetric
 import matplotlib.pyplot as plt
 import json
+import sys
 
 # from math import ceil
 from sys import stderr
@@ -209,24 +210,28 @@ def main():
     # static_fre, static_part = static[0][2], static[0][5]
 
     # Generate dynamic partition from one sample
+    print("Generating test case: random_unif", file=sys.stderr)
     _, _, min_cond_rand_unif, min_cond_rand_unif_part = generate_test_case(
         'random_unif', a_fine, b_fine, c_fine, d_fine, x_fine, 
         args.rand_n_samples, 'uniform', args.rand_min_part, args.rand_max_part, 
         args.rand_mean, args.rand_sd, 
         args.pivoting, args.symmetric)
 
+    print("Generating test case: random_norm", file=sys.stderr)
     _, _, min_cond_rand_norm, min_cond_rand_norm_part = generate_test_case(
         'random_norm', a_fine, b_fine, c_fine, d_fine, x_fine, 
         args.rand_n_samples, 'normal', args.rand_min_part, args.rand_max_part, 
         args.rand_mean, args.rand_sd, 
         args.pivoting, args.symmetric)
 
+    print("Generating test case: reduce", file=sys.stderr)
     _, _, min_cond_reduce, min_cond_reduce_part = generate_test_case(
         'reduce', a_fine, b_fine, c_fine, d_fine, x_fine,
         list(range(args.cond_lo_min, args.cond_lo_max+1)),
         list(range(args.cond_hi_min, args.cond_hi_max+1)), args.cond_min_part, 
         args.pivoting, args.symmetric)
-    
+
+    print("Generating test case: static", file=sys.stderr)
     _, _, min_cond_static, min_cond_static_part = generate_test_case(
         'static', a_fine, b_fine, c_fine, d_fine, x_fine, 
         list(range(args.static_M_min, args.static_M_max+1)), args.static_min_part, 
@@ -263,7 +268,7 @@ def main():
     }
 
     # Use a common suffix which includes the distribution and matrix ID
-    f_suffix = "{:02d}_{}_sol-{}_gen-{}".format(
+    f_suffix = "{}_{}_sol-{}_gen-{}".format(
         args.mtx_id, args.N_fine, args.distribution[0:4], args.distribution_setup[0:4])
     plot_ecdf(trials_d, "ecdf_{}".format(f_suffix))
 
