@@ -22,7 +22,7 @@ from main_static import main_static
 
 
 def setup(mtx_id, N_fine, gen_x_fine):
-    a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(mmread("../mtx/{:02d}-{}".format(mtx_id, N_fine)))
+    a_fine, b_fine, c_fine = matrix.scipy_matrix_to_bands(mmread(mtx_id))
     mtx = matrix.bands_to_numpy_matrix(a_fine, b_fine, c_fine)
 
     x_fine = gen_x_fine(N_fine)
@@ -51,10 +51,10 @@ def generate_min_partition(generator, extractor):
 
 def generate_test_case(test_case, a_fine, b_fine, c_fine, d_fine, x_fine, *main_args):
     N_fine = len(a_fine)
-    if test_case == 'random':
+    if test_case == 'random_unif' or test_case == 'random_norm':
         generator = main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, *main_args)
         extractor = lambda sample : sample[0:5]
-    
+
     elif test_case == 'reduce':
         generator = main_cond_coarse(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, *main_args)
         extractor = lambda sample : [sample[0]] + list(sample[3:])
@@ -137,7 +137,7 @@ def plot_ecdf(d, filename=None):
 def main():
     parser = argparse.ArgumentParser(description='Retrieve arguments')
     # positional arguments
-    parser.add_argument("mtx_id", type=int)
+    parser.add_argument("mtx_id", type=str, help="file name of matrix (.mtx)")
     parser.add_argument("N_fine", type=int)
     parser.add_argument("M", type=int, help="fixed block size for comparison purposes")
     # global options
@@ -151,16 +151,22 @@ def main():
     parser.add_argument("--distribution-setup", type=str, default='normal', help="distribution for solution of generated partition")
     parser.add_argument("--pivoting", type=str, default='scaled_partial', help="type of pivoting employed ('none', 'partial' or 'scaled_partial'")
     parser.add_argument("--symmetric", action='store_true', help="alternative substitution method")
+    # options for partition based on condition of coarse system
+    parser.add_argument("--cond-lo-min", type=int, default=16)
+    parser.add_argument("--cond-lo-max", type=int, default=41)
+    parser.add_argument("--cond-hi-min", type=int, default=22)
+    parser.add_argument("--cond-hi-max", type=int, default=73)
+    parser.add_argument("--cond-min-part", type=int, default=6)
     # options for random partition
     parser.add_argument("--rand-n-samples", type=int, default=1000, help="amount of samples for randomly generated partitions")
     parser.add_argument("--rand-min-part", type=int, default=32, help="minimal size of randomly generated partitions")
     parser.add_argument("--rand-max-part", type=int, default=100, help="maximal size of randomly generated partitions")
-    parser.add_argument("--rand-dist", type=str, default='uniform', help="distribution of random partition boundaries")
-    parser.add_argument("--rand-mean", type=int, default=None, help="mean size of randomly generated partitions (--rand-dist normal)")
-    parser.add_argument("--rand-sd", type=int, default=2, help="standard deviation of randomly generated partitions (--rand-dist normal)")
+    parser.add_argument("--rand-mean", type=float, default=None, help="mean of normal distributed partitions)")
+    parser.add_argument("--rand-sd", type=float, default=2, help="standard deviation of normal distributed partitions")
     # options for static partition
     parser.add_argument("--static-M-min", type=int, default=16, help="minimal block size for fixed partitions")
     parser.add_argument("--static-M-max", type=int, default=64, help="maximal block size for fixed partitions")
+    parser.add_argument("--static-min-part", type=int, default=6, help="minimal size of remainder block")
     # TODO: options for partition generated during reduction
 
     args = parser.parse_args()
@@ -203,19 +209,27 @@ def main():
     # static_fre, static_part = static[0][2], static[0][5]
 
     # Generate dynamic partition from one sample
-    min_fre_rand, min_fre_rand_part, min_cond_rand, min_cond_rand_part = generate_test_case(
-        'random', a_fine, b_fine, c_fine, d_fine, x_fine, 
-        args.rand_n_samples, args.rand_dist, args.rand_min_part, args.rand_max_part, args.rand_mean, args.rand_sd, 
+    _, _, min_cond_rand_unif, min_cond_rand_unif_part = generate_test_case(
+        'random_unif', a_fine, b_fine, c_fine, d_fine, x_fine, 
+        args.rand_n_samples, 'uniform', args.rand_min_part, args.rand_max_part, 
+        args.rand_mean, args.rand_sd, 
         args.pivoting, args.symmetric)
 
-    min_fre_reduce, min_fre_reduce_part, min_cond_reduce, min_cond_reduce_part = generate_test_case(
-        'reduce', a_fine, b_fine, c_fine, d_fine, x_fine, 
-        list(range(16,41)), list(range(22,73)), 6, 
+    _, _, min_cond_rand_norm, min_cond_rand_norm_part = generate_test_case(
+        'random_norm', a_fine, b_fine, c_fine, d_fine, x_fine, 
+        args.rand_n_samples, 'normal', args.rand_min_part, args.rand_max_part, 
+        args.rand_mean, args.rand_sd, 
+        args.pivoting, args.symmetric)
+
+    _, _, min_cond_reduce, min_cond_reduce_part = generate_test_case(
+        'reduce', a_fine, b_fine, c_fine, d_fine, x_fine,
+        list(range(args.cond_lo_min, args.cond_lo_max+1)),
+        list(range(args.cond_hi_min, args.cond_hi_max+1)), args.cond_min_part, 
         args.pivoting, args.symmetric)
     
-    min_fre_static, min_fre_static_part, min_cond_static, min_cond_static_part = generate_test_case(
+    _, _, min_cond_static, min_cond_static_part = generate_test_case(
         'static', a_fine, b_fine, c_fine, d_fine, x_fine, 
-        list(range(args.static_M_min,args.static_M_max+1)), 6, 
+        list(range(args.static_M_min, args.static_M_max+1)), args.static_min_part, 
         args.pivoting, args.symmetric)
 
     # Verify generated partition on a set of samples (x, from same distribution)
@@ -223,24 +237,16 @@ def main():
         mtx, a_fine, b_fine, c_fine, static_part, "static", gen_samples, 
         args.n_trials, args.pivoting, args.symmetric)
     
-    trials_rand_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_rand_part, "random + fre", gen_samples, 
+    trials_rand_cond_unif = run_trials(
+        mtx, a_fine, b_fine, c_fine, min_cond_rand_unif_part, "random_unif + cond", gen_samples, 
         args.n_trials, args.pivoting, args.symmetric)
-    
-    trials_rand_cond = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_cond_rand_part, "random + cond", gen_samples, 
+
+    trials_rand_cond_norm = run_trials(
+        mtx, a_fine, b_fine, c_fine, min_cond_rand_norm_part, "random_norm + cond", gen_samples, 
         args.n_trials, args.pivoting, args.symmetric)
-    
-    trials_reduce_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_reduce_part, "reduce + fre", gen_samples, 
-        args.n_trials, args.pivoting, args.symmetric)
-    
+
     trials_reduce_cond = run_trials(
         mtx, a_fine, b_fine, c_fine, min_cond_reduce_part, "reduce + cond", gen_samples, 
-        args.n_trials, args.pivoting, args.symmetric)
-    
-    trials_static_fre = run_trials(
-        mtx, a_fine, b_fine, c_fine, min_fre_static_part, "static + fre", gen_samples, 
         args.n_trials, args.pivoting, args.symmetric)
     
     trials_static_cond = run_trials(
@@ -249,13 +255,11 @@ def main():
 
     # Plot empirical cumulative distribution
     trials_d = {
-        'rand_min_fre'    : trials_rand_fre,
-        'rand_min_cond'   : trials_rand_cond,
-        'reduce_min_fre'  : trials_reduce_fre,
-        'reduce_min_cond' : trials_reduce_cond,
-        'static_min_fre'  : trials_static_fre,
-        'static_min_cond' : trials_static_cond,
-        'static_M32'      : trials_static
+        'rand_min_cond_unif' : trials_rand_cond_unif,
+        'rand_min_cond_norm' : trials_rand_cond_norm,
+        'reduce_min_cond'    : trials_reduce_cond,
+        'static_min_cond'    : trials_static_cond,
+        'static_M32'         : trials_static
     }
 
     # Use a common suffix which includes the distribution and matrix ID

@@ -11,15 +11,24 @@ import numpy as np
 import sys
 
 # %%
-import pyfma  # wrapper for std::fma (<cmath>)
+#import pyfma  # wrapper for std::fma, reportedly broken on windows
+from mpmath import mp  # arbitrary-precision floating-point math
 
 # cf. https://hal.inria.fr/ensl-00649347/en
-def kahan_det(a, b, c, d):
-    w = b*c
-    e = pyfma.fma(-b, c, w)
-    f = pyfma.fma(a, d, -w)
+# def kahan_det(a, b, c, d):
+#     w = b*c
+#     e = pyfma.fma(-b, c, w)
+#     f = pyfma.fma(a, d, -w)
 
-    return f + e
+#     return f + e
+
+def mp_det(a, b, c, d):
+    am = mp.mpf(a)
+    bm = mp.mpf(b)
+    cm = mp.mpf(d)
+    dm = mp.mpf(d)
+
+    return float(am*dm - bm*cm)
 
 # %%
 def eliminate_band_iter(a, b, c, d, pivoting):

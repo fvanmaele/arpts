@@ -88,43 +88,6 @@ function A = generate_matrix(ID, N)
         case 20
             A = tridiag(-ones(N-1, 1), 4*ones(N, 1), c_unif);
         
-        % additional matrices
-        case 21 % 14b
-            b = 1e-8*ones(N, 1);
-            A = tridiag(a_norm, b, c_norm);
-        
-        case 22 % 14c
-            b = 1e-8*ones(N, 1);
-            A = tridiag(a_unif, b, c_norm);
-        
-        case 23 % 14d
-            b = 1e-8*ones(N, 1);
-            A = tridiag(a_norm, b, c_unif);
-
-        case 24 % 14e - symmetric
-            b = 1e-8*ones(N, 1);
-            A = tridiag(a_unif, b, a_unif);
-
-        case 25 % 14f - symmetric
-            b = 1e-8*ones(N, 1);
-            A = tridiag(a_norm, b, a_norm);
-
-        case 26 % 14g - lower condition
-            b = 1e-2*ones(N, 1);
-            A = tridiag(a_unif, b, c_unif);
-
-        case 27 % 8b
-            A = gallery('randsvd', N, 1e8, 2, 1, 1);
-
-        case 28 % 9b
-            A = gallery('randsvd', N, 1e8, 3, 1, 1);
-
-        case 29 % 10b
-            A = gallery('randsvd', N, 1e8, 1, 1, 1);
-        
-        case 30 % 11b
-            A = gallery('randsvd', N, 1e8, 4, 1, 1);
-
         otherwise
             error('invalid ID specified')
     end
