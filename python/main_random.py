@@ -51,10 +51,13 @@ def main_random(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, n_samples, distr
 
         if x_fine_rptapp is not None:
             fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+            Ax = matrix.bands_mv(a_fine, b_fine, c_fine, x_fine_rptapp)
+            res = np.linalg.norm(Ax - d_fine) / np.linalg.norm(d_fine)
         else:
             fre = np.Inf
+            res = np.Inf
 
-        yield x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
+        yield x_fine_rptapp, fre, res, mtx_coarse, mtx_cond_coarse, rpta_partition
 
 
 if __name__ == "__main__":
@@ -80,5 +83,7 @@ if __name__ == "__main__":
     for sample in main_random(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
                               args.n_samples, args.distribution, args.part_min, 
                               args.part_max, args.part_mean, args.part_sd, args.pivoting, args.symmetric):
-        x_fine_rptapp, fre, mtx_coarse, mtx_cond_coarse, rpta_partition = sample
-        print('{},{},{:e},{:e}'.format(args.mtx_id, args.N_fine, fre, mtx_cond_coarse))
+        x_fine_rptapp, fre, res, mtx_coarse, mtx_cond_coarse, rpta_partition = sample
+        
+        print('{},{},{:e},{:e}'.format(
+            args.mtx_id, args.N_fine, fre, res, mtx_cond_coarse))

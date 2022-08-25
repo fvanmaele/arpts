@@ -56,10 +56,13 @@ def main_rows(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
             
             if x_fine_rptapp is not None:
                 fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+                Ax = matrix.bands_mv(a_fine, b_fine, c_fine, x_fine_rptapp)
+                res = np.linalg.norm(Ax - d_fine) / np.linalg.norm(d_fine)
             else:
                 fre = np.Inf
+                res = np.Inf
 
-            yield x_fine_rptapp, lim_lo, lim_hi, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
+            yield x_fine_rptapp, fre, res, mtx_coarse, mtx_cond_coarse, rpta_partition, lim_lo, lim_hi
 
 
 if __name__ == "__main__":
@@ -94,6 +97,7 @@ if __name__ == "__main__":
     
     for sample in main_rows(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine,
                             lim_lo_range, lim_hi_range, func, argopt, args.min_size, args.pivoting):
-        _, lim_lo, lim_hi, fre, _, mtx_cond_coarse, _ = sample
-        print("{},{},{},{},{:e},{:e}".format(
-            args.mtx_id, args.N_fine, lim_lo, lim_hi, fre, mtx_cond_coarse))
+        _, fre, res, _, mtx_cond_coarse, _, lim_lo, lim_hi = sample
+        
+        print("{},{},{},{},{:e},{:e},{:e}".format(
+            args.mtx_id, args.N_fine, lim_lo, lim_hi, fre, res, mtx_cond_coarse))

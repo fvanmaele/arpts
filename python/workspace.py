@@ -27,7 +27,7 @@ from main_rows import main_rows
 
 
 # %% Linear system
-mtx_id = 26
+mtx_id = 14
 N_fine = 512
 
 A_sp = mmread('{}/mtx/{:02d}-{}'.format(source_dir, mtx_id, N_fine))

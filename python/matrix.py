@@ -22,6 +22,18 @@ def bands_tridiag(a, b, c):
     return np.concatenate(([0], a)), b, np.concatenate((c, [0]))
 
 
+def bands_mv(a, b, c, x):
+    Ax = np.zeros(len(a))
+    n = len(a)
+
+    Ax[0] = b[0]*x[0] + c[0]*x[1]
+    for i in range(1, n-1):
+        Ax[i] = a[i]*x[i-1] + b[i]*x[i] + c[i]*x[i+1]
+    
+    Ax[n-1] = a[n-1]*x[n-2] + b[n-1]*x[n-1]
+    return Ax
+
+
 def numpy_matrix_to_bands(mtx):
     N = mtx.shape[0]
     a = [0.0] * N

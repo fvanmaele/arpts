@@ -12,23 +12,23 @@ import matplotlib.pyplot as plt
 # %%
 trials = [
     # 'trials_11-512-1e+04_512_sol-norm_gen-norm.json',
-    'trials_11-512-1e+05_512_sol-norm_gen-norm.json',
+    # 'trials_11-512-1e+05_512_sol-norm_gen-norm.json',
     # 'trials_11-512-1e+06_512_sol-norm_gen-norm.json',
     # 'trials_11-512-1e+07_512_sol-norm_gen-norm.json',
     'trials_11-512-1e+08_512_sol-norm_gen-norm.json',
-    # 'trials_11-512-1e+09_512_sol-norm_gen-norm.json',
-    # 'trials_11-512-1e+10_512_sol-norm_gen-norm.json',
-    # 'trials_11-512-1e+11_512_sol-norm_gen-norm.json',
+    'trials_11-512-1e+09_512_sol-norm_gen-norm.json',
+    'trials_11-512-1e+10_512_sol-norm_gen-norm.json',
+    'trials_11-512-1e+11_512_sol-norm_gen-norm.json',
     # 'trials_11-512-1e+12_512_sol-norm_gen-norm.json',
     # 'trials_14-512-0e+00_512_sol-norm_gen-norm.json',
     # 'trials_14-512-1e-01_512_sol-norm_gen-norm.json',
-    'trials_14-512-1e-02_512_sol-norm_gen-norm.json',
+    # 'trials_14-512-1e-02_512_sol-norm_gen-norm.json',
     # 'trials_14-512-1e-03_512_sol-norm_gen-norm.json',
     # 'trials_14-512-1e-04_512_sol-norm_gen-norm.json',
     'trials_14-512-1e-05_512_sol-norm_gen-norm.json',
-    # 'trials_14-512-1e-06_512_sol-norm_gen-norm.json',
-    # 'trials_14-512-1e-07_512_sol-norm_gen-norm.json',
-    # 'trials_14-512-1e-08_512_sol-norm_gen-norm.json'
+    'trials_14-512-1e-06_512_sol-norm_gen-norm.json',
+    'trials_14-512-1e-07_512_sol-norm_gen-norm.json',
+    'trials_14-512-1e-08_512_sol-norm_gen-norm.json'
 ]
 
 # %%
@@ -68,15 +68,24 @@ for T in sorted(trials_dict.keys()):
     images.append([x, y, e])
     
 # %%
-fig, axs = plt.subplots(2, 2)
+fig, axs = plt.subplots(4, 2)
 axs[0, 0].errorbar(images[0][0], images[0][1], images[0][2], linestyle='None', marker='o')
-axs[0, 0].set_title('11-512-1e+05')
+axs[0, 0].set_title('11-512-1e+08')
 axs[0, 1].errorbar(images[1][0], images[1][1], images[1][2], linestyle='None', marker='o')
-axs[0, 1].set_title('11-512-1e+08')
+axs[0, 1].set_title('11-512-1e+09')
 axs[1, 0].errorbar(images[2][0], images[2][1], images[2][2], linestyle='None', marker='o')
-axs[1, 0].set_title('14-512-1e-02')
+axs[1, 0].set_title('11-512-1e+10')
 axs[1, 1].errorbar(images[3][0], images[3][1], images[3][2], linestyle='None', marker='o')
-axs[1, 1].set_title('14-512-1e-05')
+axs[1, 1].set_title('11-512-1e+11')
+
+axs[2, 0].errorbar(images[4][0], images[4][1], images[4][2], linestyle='None', marker='o')
+axs[2, 0].set_title('14-512-1e-05')
+axs[2, 1].errorbar(images[5][0], images[5][1], images[5][2], linestyle='None', marker='o')
+axs[2, 1].set_title('14-512-1e-06')
+axs[3, 0].errorbar(images[6][0], images[6][1], images[6][2], linestyle='None', marker='o')
+axs[3, 0].set_title('14-512-1e-07')
+axs[3, 1].errorbar(images[7][0], images[7][1], images[7][2], linestyle='None', marker='o')
+axs[3, 1].set_title('14-512-1e-08')
 
 for ax in axs.flat:
     ax.set(xlabel='Case', ylabel='FRE')

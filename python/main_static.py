@@ -55,10 +55,13 @@ def main_static(N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, M_range, min_par
 
         if x_fine_rptapp is not None:
             fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
+            Ax = matrix.bands_mv(a_fine, b_fine, c_fine, x_fine_rptapp)
+            res = np.linalg.norm(Ax - d_fine) / np.linalg.norm(d_fine)
         else:
             fre = np.Inf
+            res = np.Inf
 
-        yield x_fine_rptapp, M, fre, mtx_coarse, mtx_cond_coarse, rpta_partition
+        yield x_fine_rptapp, fre, res, mtx_coarse, mtx_cond_coarse, rpta_partition, M
 
 
 if __name__ == "__main__":
@@ -79,7 +82,10 @@ if __name__ == "__main__":
     # Generate linear system
     a_fine, b_fine, c_fine, d_fine, x_fine = main_setup(args.mtx_id, args.N_fine)
     
+    print("Id,N,M,fre,residual,coarse_cond")
     for sample in main_static(args.N_fine, a_fine, b_fine, c_fine, d_fine, x_fine, 
                               M_range, args.min_size, args.pivoting, args.symmetric):
-        _, M, fre, _, mtx_cond_coarse, _ = sample
-        print("{},{},{},{:e},{:e}".format(args.mtx_id, args.N_fine, M, fre, mtx_cond_coarse))
+        _, fre, res, _, mtx_cond_coarse, _, M = sample
+
+        print("{},{},{},{:e},{:e},{:e}".format(
+            args.mtx_id, args.N_fine, M, fre, res, mtx_cond_coarse))

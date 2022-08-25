@@ -210,7 +210,7 @@ def rpta_symmetric(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled_p
 
                 # invert 2x2 system
                 # det_j = mtx_j[0][0]*mtx_j[1][1] - mtx_j[0][1]*mtx_j[1][0]
-                det_j = kahan_det(mtx_j[0][0], mtx_j[0][1], mtx_j[1][0], mtx_j[1][1])
+                det_j = mp_det(mtx_j[0][0], mtx_j[0][1], mtx_j[1][0], mtx_j[1][1])
                 adj_j = np.array([[ mtx_j[1][1], -mtx_j[0][1]],
                                   [-mtx_j[1][0],  mtx_j[0][0]]])
                 inv_j = 1/det_j * adj_j
