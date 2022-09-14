@@ -107,15 +107,13 @@ function rpta_substitute(a::AbstractVector, b::AbstractVector, c::AbstractVector
         partition_last = partition_bounds[2]
 
         if partition_id > 1
-            # XXX: verify indices
-            x1_prev_partition = x_coarse[partition_id * 2 - 1]
+            x1_prev_partition = x_coarse[partition_id * 2 - 2]
         else
             x1_prev_partition = 0.0
         end
 
         if partition_id < num_partitions - 1
-            # XXX: verify indices
-            x0_next_partition = x_coarse[(partition_id + 1) * 2]
+            x0_next_partition = x_coarse[partition_id * 2 + 1]
         else
             x0_next_partition = 0.0
         end
