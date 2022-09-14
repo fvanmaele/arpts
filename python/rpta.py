@@ -20,7 +20,7 @@ def apply_threshold(x, y, eps):
 
 
 # TODO: add visualization
-def eliminate_band(a, b, c, d, pivoting, threshold=0, cutoff=False):
+def eliminate_band(a, b, c, d, pivoting, threshold=0):
     M = len(a)
     assert(M > 1) # band should at least have one element
 
@@ -74,7 +74,6 @@ def eliminate_band(a, b, c, d, pivoting, threshold=0, cutoff=False):
 def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, d_coarse, 
                   partition, pivoting, threshold=0):
     for partition_id, partition_bounds in enumerate(partition):
-    # for partition_id, partition_offset in enumerate(range(0, N, M)):
         partition_begin = partition_bounds[0]
         partition_end = partition_bounds[1]
 
@@ -139,7 +138,6 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1, x0_next_
         s_c[4] = d[j]
         apply_threshold(s_p[1], s_c[1], threshold)
 
-        # Scaled partial pivoting
         if pivoting == "scaled_partial":
             m_p = max([abs(s_p[1]), abs(s_p[2])])
             m_c = max([abs(s_c[1]), abs(s_c[2]), abs(s_c[3])])
@@ -158,6 +156,7 @@ def eliminate_band_with_solution(a, b, c, d, x1_prev_partition, x0, x1, x0_next_
             i[j - 1] = ip
             r_c = 1.0
             r_p = (-1.0) * s_c[1] / s_p[1]
+
             a[ip] = s_p[1]
             b[ip] = s_p[2]
             c[ip] = 0.0
@@ -200,10 +199,8 @@ def rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, partition,
     x_fine = [None] * N
 
     for partition_id, partition_bounds in enumerate(partition):
-    # for partition_id, partition_offset in enumerate(range(0, N, M)):
         partition_begin = partition_bounds[0]
         partition_end = partition_bounds[1]
-        # partition_end = min(partition_offset+M, N)
 
         if partition_id > 0:
             x1_prev_partition = x_coarse[partition_id * 2 - 1]
