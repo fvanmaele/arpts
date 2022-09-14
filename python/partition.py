@@ -126,6 +126,8 @@ def generate_random_partition_normal(N, part_min, part_max, part_mean, part_sd):
     return partition
 
 
+# Note: the length of the resulting partition is variable: boundaries are merged 
+# to ensure the size of each block matches the constraints.
 def generate_random_partition(N, part_min, part_max):
     assert(part_min < part_max)
     assert(part_min > 0)

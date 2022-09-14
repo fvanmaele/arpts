@@ -5,16 +5,19 @@ using SparseArrays
 using MatrixMarket
 using Random
 
-function generate_holes(rng, n_holes, n_min_part, n_max_part, n_samples; 
+# The difference to `generate_random_partition` in python/partition.py is that
+# all samples have the same amount of partitions (no merging of partition boundaries)
+function generate_holes(rng, n_last, n_holes, n_min_part, n_max_part, n_samples; 
                         n_max_attempts=5000)
     holes = Vector{Vector{Float64}}()
     n_holes_done = 0
     attempts = 0
 
     while n_holes_done < n_holes_samples
-        is_valid = true
-        sample = sort(randperm(N)[1:n_holes])
+        is_valid = true  # determines if a partition is of a given size
+        sample = sort(vcat([1; randperm(N)[1:n_holes]; n_last]))
         
+        # TODO: if last partition is too low, merge into upper neighbor
         for part in Iterators.partition(sample, 2)
             part_size = part[2] - part[1]
     
@@ -53,7 +56,7 @@ n_holes_max_attempts = 5000
 
 # holes are generated independent of the considered matrix
 rng = MersenneTwister(1234)
-holes = generate_holes(rng, n_holes, n_part_min_size, n_part_max_size, n_holes_samples; n_max_attempts=500000)
+holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples; n_max_attempts=500000)
 
 # holes = Vector{Vector{Float64}}()
 # n_holes_done = 0
