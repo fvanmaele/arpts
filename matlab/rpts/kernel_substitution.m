@@ -89,7 +89,7 @@ function [x] = kernel_substitution(a, b, c, d, x1_prev_partition, x0, x1, ...
         x(M-1) = (d(M)-b(M)*x(M)-c(M)*x0_next_partition) / a(M);
     end
 
-    for j = M-2:3
+    for j = M-2:-1:2
         k = i(j);
         x(j) = (d(k) - b(k)*x(j+1) - c(k)*x(j+2)) / a(k);
     end
