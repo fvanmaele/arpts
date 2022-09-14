@@ -130,5 +130,6 @@ function rpta_substitute(a::AbstractVector, b::AbstractVector, c::AbstractVector
 
         x_fine[partition_begin:partition_last] = x_partition
     end
+
     return x_fine
 end
