@@ -1,9 +1,9 @@
 #!/usr/bin/julia
-using MatrixMarket
-using SparseArrays
-using LinearAlgebra
-using Random
 using JSON
+using LinearAlgebra
+using SparseArrays
+using MatrixMarket
+using Random
 
 # load linear system
 N = 512
