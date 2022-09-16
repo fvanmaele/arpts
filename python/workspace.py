@@ -25,7 +25,6 @@ from main_cond_coarse import main_cond_coarse
 from main_random import main_random
 from main_rows import main_rows
 
-
 # %% Linear system
 mtx_id = 14
 N_fine = 512
@@ -85,6 +84,64 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
 
 # %%
 # print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
+# print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
 
 # %%
-# print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
+import json
+import glob
+import matplotlib.pyplot as plt
+
+# %%
+decoupled = glob.glob("../decoupled/mtx-{}-{}-decoupled-*.json".format(mtx_id, N_fine))
+decoupled.sort()
+
+mtx_data = []
+for d in decoupled:
+    with open(d, 'r') as d_json:
+        mtx_data.append(json.load(d_json))
+
+conds = [d['condition'] for d in mtx_data]
+maxacc = [d['max_accuracy'] for d in mtx_data]
+relres = [d['residual'] / np.ones(512) for d in mtx_data]  # b = 1 ... 1
+
+# %% Histogram on linear scale
+hist, bins, _ = plt.hist(conds, bins=50)
+
+# %% Histogram on log scale
+logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
+plt.hist(conds, bins=logbins)
+plt.xscale('log')
+#plt.plot(conds, maxacc, 'bo')
+
+# %%
+mtx_decoupled = glob.glob("../decoupled/mtx-{}-{}-decoupled-*.mtx".format(mtx_id, N_fine))
+mtx_decoupled.sort()
+
+fre_dec = []
+fre_static = []
+rhs = np.ones(N_fine)  # fixed right-hand-side for all samples
+
+for i, m in enumerate(mtx_decoupled):
+    mtx = mmread(m)
+    print(m, ", cond: ", mtx_data[i]['condition'])
+    a_fine_m, b_fine_m, c_fine_m = matrix.scipy_matrix_to_bands(mtx)
+    x_fine_m = np.array(mtx_data[i]['solution'])
+
+    # Convert holes (1-indexed) into partition (0-indexed)
+    holes_0idx = np.array(mtx_data[i]['sample_1idx']) - 1
+    partition_decoupled = [[0, holes_0idx[0]]]
+    for prev, curr in zip(holes_0idx, holes_0idx[1:]):
+        partition_decoupled.append([prev, curr])
+
+    partition_decoupled.append([holes_0idx[-1], N_fine])
+    partition_static = partition.generate_static_partition(N_fine, 32) # TODO: try other partition sizes
+    print(partition_decoupled)
+    
+    x_rpta_dec, mtx_coarse_dec, mtx_cond_coarse_dec = rpta.reduce_and_solve(
+        a_fine_m, b_fine_m, c_fine_m, rhs, partition_decoupled, pivoting='scaled_partial')
+    x_rpta_static, mtx_coarse_static, mtx_cond_coarse_static = rpta.reduce_and_solve(
+        a_fine_m, b_fine_m, c_fine_m, rhs, partition_static, pivoting='scaled_partial')
+    
+    fre_dec.append(np.linalg.norm(x_rpta_dec - x_fine_m) / np.linalg.norm(x_fine_m))
+    fre_static.append(np.linalg.norm(x_rpta_static - x_fine_m) / np.linalg.norm(x_fine_m))
+    print("fre (decoupled): ", fre_dec[-1], ", fre (static): ", fre_static[-1])

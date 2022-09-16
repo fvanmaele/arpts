@@ -82,7 +82,7 @@ def rptapp_reduce(a_fine, b_fine, c_fine, d_fine, a_coarse, b_coarse, c_coarse, 
             b_fine[partition_begin:partition_end],
             c_fine[partition_begin:partition_end],
             d_fine[partition_begin:partition_end],
-            pivoting, threshold, True)
+            pivoting, threshold)
 
         c_coarse_upper, b_coarse_upper, a_coarse_upper, d_coarse_upper = eliminate_band(
             list(reversed(c_fine[partition_begin:partition_end])),
@@ -305,7 +305,6 @@ def reduce_and_solve(a_fine, b_fine, c_fine, d_fine, partition, pivoting='scaled
         x_fine_rptapp = rptapp_substitute(a_fine, b_fine, c_fine, d_fine, x_coarse, 
                                           partition, pivoting, threshold=0)
         mtx_cond_coarse = np.linalg.cond(mtx_coarse)
-        # fre = np.linalg.norm(x_fine_rptapp - x_fine) / np.linalg.norm(x_fine)
 
     except np.linalg.LinAlgError:
         print("warning: Singular matrix detected", file=sys.stderr)

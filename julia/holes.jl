@@ -15,21 +15,22 @@ function generate_holes(rng, n_last, n_holes, n_min_part, n_max_part, n_samples;
     attempts = 0
 
     while n_holes_done < n_samples
-        is_valid = true  # determines if a partition is of a given size
         sample = sort(vcat([1; randperm(N)[1:n_holes]; n_last])) # sorted array of length n_holes+2
-        
-        # TODO: if last partition is too low, merge into upper neighbor
-        for part in Iterators.partition(sample, 2)
-            part_size = part[2] - part[1]
+        is_valid = true  # determines if a partition is of a given size
+
+        for (part_first, part_last) in Iterators.zip(sample, sample[2:length(sample)])
+            part_size = part_last - part_first + 1
     
-            if !(part_size <= n_part_max_size && part_size >= n_part_min_size)
+            if !(part_size <= n_max_part && part_size >= n_min_part)
                 is_valid = false
+                break
             end
         end
 
-        if is_valid
+        if is_valid == true
             # copy because we reassign `sample` in every iteration
             push!(holes, convert(Vector{Int64}, sample[2:n_holes+1]))
+            println("sample generated of size " * string(n_min_part) * " <= M <= " * string(n_max_part) * " [" * string(n_holes_done) * "]")
             n_holes_done += 1
         end
 
@@ -77,11 +78,11 @@ n_holes_max_attempts = 5000
 # holes are generated independent of the considered matrix
 rng = MersenneTwister(1234)
 holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples; 
-                       n_max_attempts=500000)
+                       n_max_attempts=50000000)
 @assert sum(unique(map(length, holes))) == n_holes
+@assert length(unique(holes)) == length(holes)
 
 # set rows determined by hole indices to 0 (later: small epsilon)
-# S_samples = Vector{SparseMatrixCSC}()
 for mtx_id in idx
     S = MatrixMarket.mmread("mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
     S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
@@ -101,7 +102,8 @@ for mtx_id in idx
         jname = @sprintf("mtx-%i-%i-decoupled-%04i.json", mtx_id, N, k) # 1-indexed positions
         sol, res, acc = tridiag_exact_solution(S_new, rhs)
         open(jname, "w") do f
-            JSON.print(f, Dict("sample_1idx" => sample, "solution" => sol, "max_accuracy" => acc, "residual" => res, "condition" => S_new_cond))
+            JSON.print(f, Dict("sample_1idx" => sample, "solution" => sol, "max_accuracy" => acc, 
+                               "residual" => res, "condition" => S_new_cond, "rhs" => rhs))
         end
     end
 end

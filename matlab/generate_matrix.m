@@ -3,9 +3,6 @@ function A = generate_matrix(ID, N)
     b_unif = unifrnd(-1, 1, N, 1);
     a_unif = unifrnd(-1, 1, N-1, 1);
     c_unif = unifrnd(-1, 1, N-1, 1);
-    a_norm = normrnd(0, 1, N-1, 1);
-    b_norm = normrnd(0, 1, N-1, 1);
-    c_norm = normrnd(0, 1, N-1, 1);
 
     switch ID
         case 1
