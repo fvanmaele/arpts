@@ -8,13 +8,13 @@ using Printf
 
 # The difference to `generate_random_partition` in python/partition.py is that
 # all samples have the same amount of partitions (no merging of partition boundaries)
-function generate_holes(rng, n_last, n_holes, n_min_part, n_max_part, n_samples; 
-                        n_max_attempts=5000)
+function generate_holes(rng, n_last, n_holes, n_min_part, n_max_part, n_samples)
     holes = Vector{Vector{Int64}}()
     n_holes_done = 0
     attempts = 0
 
     while n_holes_done < n_samples
+        # TODO: find more efficient way to sample
         sample = sort(vcat([1; randperm(N)[1:n_holes]; n_last])) # sorted array of length n_holes+2
         is_valid = true  # determines if a partition is of a given size
 
@@ -30,13 +30,8 @@ function generate_holes(rng, n_last, n_holes, n_min_part, n_max_part, n_samples;
         if is_valid == true
             # copy because we reassign `sample` in every iteration
             push!(holes, convert(Vector{Int64}, sample[2:n_holes+1]))
-            println("sample generated of size " * string(n_min_part) * " <= M <= " * string(n_max_part) * " [" * string(n_holes_done) * "]")
+            println("sample [" * string(n_holes) * "] generated of size " * string(n_min_part) * " <= M <= " * string(n_max_part) * " [" * string(n_holes_done) * "]")
             n_holes_done += 1
-        end
-
-        attempts += 1
-        if attempts > n_max_attempts
-            error("maximum number of attempts exceeded, valid samples: " * string(n_holes_done))
         end
     end
     return holes
@@ -73,37 +68,58 @@ n_holes = 16
 n_part_min_size = 16
 n_part_max_size = 80
 n_holes_samples = 1000 # number of samples within partition bounds
-n_holes_max_attempts = 5000
 
-# holes are generated independent of the considered matrix
-rng = MersenneTwister(1234)
-holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples; 
-                       n_max_attempts=50000000)
-@assert sum(unique(map(length, holes))) == n_holes
-@assert length(unique(holes)) == length(holes)
+# holes are generated independently from linear systems
+# rng = MersenneTwister(1234)
+# holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples; 
+#                        n_max_attempts=50000000)
+# @assert sum(unique(map(length, holes))) == n_holes
+# @assert length(unique(holes)) == length(holes)
+
+n_holes_range = 8:16
+v_holes = Vector{Vector{Vector{Int64}}}(undef, length(n_holes_range))
+
+# Generate samples for varying amount of holes
+Threads.@threads for n_holes in n_holes_range
+    rng = MersenneTwister(1234)
+    holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples)
+
+    @assert sum(unique(map(length, holes))) == n_holes
+    @assert length(unique(holes)) == length(holes)
+    v_holes[n_holes-n_holes_range[1]+1] = holes  # n_holes partitioned between threads
+
+    jname = @sprintf("holes-%i-%i-%i-%02i.json", N, n_part_min_size, n_part_max_size, n_holes)
+    open(jname, "w") do f
+        JSON.print(f, holes)
+    end
+end
 
 # set rows determined by hole indices to 0 (later: small epsilon)
 for mtx_id in idx
-    S = MatrixMarket.mmread("mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
-    S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
-    
-    Threads.@threads for k in 1:n_holes_samples
-        sample = holes[k]
-        dl, d, du = copy(S_dl), copy(S_d), copy(S_du)
-        dl[sample] .= 0.0
-        du[sample] .= 0.0
+    for n_holes in 8:16
+        S = MatrixMarket.mmread("mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
+        S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
+        holes = v_holes[n_holes]
 
-        # push!(S_samples, dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du))))
-        fname = @sprintf("mtx-%i-%i-decoupled-%04i.mtx", mtx_id, N, k)
-        S_new = dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du)))
-        S_new_cond = cond(Array(S_new), 2)
-        MatrixMarket.mmwrite(fname, S_new)
-    
-        jname = @sprintf("mtx-%i-%i-decoupled-%04i.json", mtx_id, N, k) # 1-indexed positions
-        sol, res, acc = tridiag_exact_solution(S_new, rhs)
-        open(jname, "w") do f
-            JSON.print(f, Dict("sample_1idx" => sample, "solution" => sol, "max_accuracy" => acc, 
-                               "residual" => res, "condition" => S_new_cond, "rhs" => rhs))
+        Threads.@threads for k in 1:n_holes_samples
+            sample = holes[k]
+            dl, d, du = copy(S_dl), copy(S_d), copy(S_du)
+            dl[sample] .= 0.0
+            du[sample] .= 0.0
+
+            # push!(S_samples, dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du))))
+            fname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%04i.mtx", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, k)
+            S_new = dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du)))
+            S_new_cond = cond(Array(S_new), 2)
+            MatrixMarket.mmwrite(fname, S_new)
+        
+            jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%04i.json", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, k) # 1-indexed positions
+            sol, res, acc = tridiag_exact_solution(S_new, rhs)
+            open(jname, "w") do f
+                JSON.print(f, Dict("sample_1idx" => sample, "solution"  => sol, "max_accuracy" => acc, 
+                                   "residual"    => res,    "condition" => S_new_cond, 
+                                   "rhs"         => rhs,    "n_holes"   => n_holes))
+            end
         end
     end
 end
