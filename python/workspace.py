@@ -25,20 +25,6 @@ from main_cond_coarse import main_cond_coarse
 from main_random import main_random
 from main_rows import main_rows
 
-# %% Linear system
-mtx_id = 14
-N_fine = 512
-
-A_sp = mmread('{}/mtx/{:02d}-{}'.format(source_dir, mtx_id, N_fine))
-try:
-    A = np.asarray(A_sp.todense())
-except AttributeError:
-    A = np.asarray(A_sp)
-
-a_fine, b_fine, c_fine = matrix.numpy_matrix_to_bands(A)
-x_fine = np.random.normal(3, 1, N_fine)
-d_fine = np.matmul(A, x_fine)
-
 # %%
 def cond(A):
     print(np.format_float_scientific(np.linalg.cond(A)))
@@ -90,6 +76,10 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
 import json
 import glob
 import matplotlib.pyplot as plt
+
+# %%
+mtx_id = 14
+N_fine = 512
 
 # %%
 decoupled = glob.glob("../decoupled/mtx-{}-{}-decoupled-*.json".format(mtx_id, N_fine))
@@ -145,3 +135,8 @@ for i, m in enumerate(mtx_decoupled):
     fre_dec.append(np.linalg.norm(x_rpta_dec - x_fine_m) / np.linalg.norm(x_fine_m))
     fre_static.append(np.linalg.norm(x_rpta_static - x_fine_m) / np.linalg.norm(x_fine_m))
     print("fre (decoupled): ", fre_dec[-1], ", fre (static): ", fre_static[-1])
+
+# %%
+plt.yscale('log')
+plt.plot(range(0, 1000), fre_dec, 'o')
+plt.plot(range(0, 1000), fre_static, 'o')
