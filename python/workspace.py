@@ -78,13 +78,15 @@ import glob
 import matplotlib.pyplot as plt
 
 # %%
-mtx_id = 14
+mtx_id = 14  # TODO: [11, 14]
 N_fine = 512
+n_holes = 8  # TODO: range(8, 17)
 
 # %%
-decoupled = glob.glob("../decoupled/mtx-{}-{}-decoupled-*.json".format(mtx_id, N_fine))
+decoupled = glob.glob("../decoupled/{:0>2}/mtx-{}-{}-decoupled-*.json".format(n_holes, mtx_id, N_fine))
 decoupled.sort()
 
+# %%
 mtx_data = []
 for d in decoupled:
     with open(d, 'r') as d_json:
@@ -104,12 +106,13 @@ plt.xscale('log')
 #plt.plot(conds, maxacc, 'bo')
 
 # %%
-mtx_decoupled = glob.glob("../decoupled/mtx-{}-{}-decoupled-*.mtx".format(mtx_id, N_fine))
+mtx_decoupled = glob.glob("../decoupled/{:0>2}/mtx-{}-{}-decoupled-*.mtx".format(n_holes, mtx_id, N_fine))
 mtx_decoupled.sort()
 
 fre_dec = []
 fre_static = []
-rhs = np.ones(N_fine)  # fixed right-hand-side for all samples
+rhs = np.ones(N_fine)  # TODO: multiple right-hand sides
+M_range = range(32, 65)
 
 for i, m in enumerate(mtx_decoupled):
     mtx = mmread(m)
@@ -124,19 +127,44 @@ for i, m in enumerate(mtx_decoupled):
         partition_decoupled.append([prev, curr])
 
     partition_decoupled.append([holes_0idx[-1], N_fine])
-    partition_static = partition.generate_static_partition(N_fine, 32) # TODO: try other partition sizes
-    print(partition_decoupled)
-    
+
     x_rpta_dec, mtx_coarse_dec, mtx_cond_coarse_dec = rpta.reduce_and_solve(
         a_fine_m, b_fine_m, c_fine_m, rhs, partition_decoupled, pivoting='scaled_partial')
-    x_rpta_static, mtx_coarse_static, mtx_cond_coarse_static = rpta.reduce_and_solve(
-        a_fine_m, b_fine_m, c_fine_m, rhs, partition_static, pivoting='scaled_partial')
-    
     fre_dec.append(np.linalg.norm(x_rpta_dec - x_fine_m) / np.linalg.norm(x_fine_m))
-    fre_static.append(np.linalg.norm(x_rpta_static - x_fine_m) / np.linalg.norm(x_fine_m))
-    print("fre (decoupled): ", fre_dec[-1], ", fre (static): ", fre_static[-1])
+    
+    # Comparison with static partition  
+    fre_static_i = []
+    for M in M_range:
+        partition_static = partition.generate_static_partition(N_fine, M)
+    
+        x_rpta_static, mtx_coarse_static, mtx_cond_coarse_static = rpta.reduce_and_solve(
+            a_fine_m, b_fine_m, c_fine_m, rhs, partition_static, pivoting='scaled_partial')
+
+        fre_static_i.append(np.linalg.norm(x_rpta_static - x_fine_m) / np.linalg.norm(x_fine_m))    
+        print("fre (decoupled): {}, fre (M = {}): {}".format(fre_dec[-1], M, fre_static_i[-1]))
+    
+    fre_static.append(fre_static_i)
 
 # %%
 plt.yscale('log')
 plt.plot(range(0, 1000), fre_dec, 'o')
-plt.plot(range(0, 1000), fre_static, 'o')
+plt.plot(range(0, 1000), [fre_static[id][0] for id in range(0, len(fre_static))], 'o')
+
+# %%
+fre_idx = [0]
+fre_lab = ["D"]
+fre_mean = [np.mean(fre_dec)]
+fre_std = [np.std(fre_dec)]
+fre_static_t = np.array(fre_static).T
+
+for k, M in enumerate(M_range):
+    fre_mean.append(np.mean(fre_static_t[k]))
+    fre_std.append(np.std(fre_static_t[k]))
+    fre_idx.append(k+1)
+    fre_lab.append(str(M))
+
+plt.title("mtx_id {} - n_holes {} - n_samples {} - rhs {}".format(mtx_id, n_holes, len(mtx_decoupled), 1))
+plt.xticks(ticks=fre_idx, labels=fre_lab)
+plt.yscale('log')
+plt.errorbar(fre_idx, fre_mean, fre_std, linestyle='None', marker='o', capsize=3)
+plt.show()
