@@ -59,7 +59,8 @@ end
 # linear system with fixed right-hand side
 N = 512
 idx = [11, 14]
-rhs = ones(N)
+rng = MersenneTwister(1234)
+rhs = [ones(N), zeros(N), randn(rng, N)]
 
 # generate "holes" in matrix
 #n_holes_min = 8  # corresponding to partition size of M=64
@@ -80,26 +81,35 @@ n_holes_range = 8:16
 v_holes = Vector{Vector{Vector{Int64}}}(undef, length(n_holes_range))
 
 # Generate samples for varying amount of holes
-Threads.@threads for n_holes in n_holes_range
-    rng = MersenneTwister(1234)
-    holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples)
+# Threads.@threads for n_holes in n_holes_range
+#     rng = MersenneTwister(1234)
+#     holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples)
+
+#     @assert sum(unique(map(length, holes))) == n_holes
+#     @assert length(unique(holes)) == length(holes)
+#     v_holes[n_holes-n_holes_range[1]+1] = holes  # n_holes partitioned between threads
+
+#     jname = @sprintf("holes-%i-%i-%i-%02i.json", N, n_part_min_size, n_part_max_size, n_holes)
+#     open(jname, "w") do f
+#         JSON.print(f, holes)
+#     end
+# end
+
+for n_holes in n_holes_range
+    jname = @sprintf("decoupled/holes/holes-%i-%i-%i-%02i.json", N, n_part_min_size, n_part_max_size, n_holes)
+    holes = JSON.parsefile(jname)
 
     @assert sum(unique(map(length, holes))) == n_holes
     @assert length(unique(holes)) == length(holes)
     v_holes[n_holes-n_holes_range[1]+1] = holes  # n_holes partitioned between threads
-
-    jname = @sprintf("holes-%i-%i-%i-%02i.json", N, n_part_min_size, n_part_max_size, n_holes)
-    open(jname, "w") do f
-        JSON.print(f, holes)
-    end
 end
 
 # set rows determined by hole indices to 0 (later: small epsilon)
 for mtx_id in idx
-    for n_holes in 8:16
+    for n_holes in n_holes_range
         S = MatrixMarket.mmread("mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
         S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
-        holes = v_holes[n_holes]
+        holes = v_holes[n_holes-n_holes_range[1]+1]
 
         Threads.@threads for k in 1:n_holes_samples
             sample = holes[k]
@@ -112,13 +122,16 @@ for mtx_id in idx
             S_new = dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du)))
             S_new_cond = cond(Array(S_new), 2)
             MatrixMarket.mmwrite(fname, S_new)
-        
-            jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%04i.json", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, k) # 1-indexed positions
-            sol, res, acc = tridiag_exact_solution(S_new, rhs)
-            open(jname, "w") do f
-                JSON.print(f, Dict("sample_1idx" => sample, "solution"  => sol, "max_accuracy" => acc, 
-                                   "residual"    => res,    "condition" => S_new_cond, 
-                                   "rhs"         => rhs,    "n_holes"   => n_holes))
+
+            for (bi, b) in enumerate(rhs)
+                jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%04i-rhs%i.json", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, k, bi) # 1-indexed positions
+                sol, res, acc = tridiag_exact_solution(S_new, b)
+
+                open(jname, "w") do f
+                    JSON.print(f, Dict("sample_1idx" => sample, "solution"  => sol, "max_accuracy" => acc, 
+                                        "residual"   => res,    "condition" => S_new_cond, 
+                                        "rhs"        => b,      "n_holes"   => n_holes))
+                end
             end
         end
     end
