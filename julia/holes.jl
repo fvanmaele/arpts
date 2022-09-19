@@ -57,6 +57,7 @@ function tridiag_exact_solution(T::AbstractMatrix{Float64}, rhs::AbstractVector{
 end
 
 # linear system with fixed right-hand side
+# TODO: extend rhs with more entries if possible
 N = 512
 idx = [11, 14]
 rng = MersenneTwister(1234)
@@ -123,6 +124,7 @@ for mtx_id in idx
             S_new_cond = cond(Array(S_new), 2)
             MatrixMarket.mmwrite(fname, S_new)
 
+            # TODO: if the rhs is zero, it suffices to set zero as the solution vector
             for (bi, b) in enumerate(rhs)
                 jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%04i-rhs%i.json", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, k, bi) # 1-indexed positions
                 sol, res, acc = tridiag_exact_solution(S_new, b)

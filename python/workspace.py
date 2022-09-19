@@ -78,15 +78,16 @@ import glob
 import matplotlib.pyplot as plt
 
 # %%
-mtx_id = 14  # TODO: [11, 14]
 N_fine = 512
-n_holes = 8  # TODO: range(8, 17)
+#mtx_id = [11, 14] # TODO
+mtx_id = 14
+#n_holes = list(range(8, 17)) # TODO
+n_holes = 16
 
 # %%
 decoupled = glob.glob("../decoupled/{:0>2}/mtx-{}-{}-decoupled-*.json".format(n_holes, mtx_id, N_fine))
 decoupled.sort()
 
-# %%
 mtx_data = []
 for d in decoupled:
     with open(d, 'r') as d_json:
@@ -167,4 +168,4 @@ plt.title("mtx_id {} - n_holes {} - n_samples {} - rhs {}".format(mtx_id, n_hole
 plt.xticks(ticks=fre_idx, labels=fre_lab)
 plt.yscale('log')
 plt.errorbar(fre_idx, fre_mean, fre_std, linestyle='None', marker='o', capsize=3)
-plt.show()
+plt.savefig("mtx-{}-{}-{}-rhs1".format(mtx_id, n_holes, len(mtx_decoupled)))
