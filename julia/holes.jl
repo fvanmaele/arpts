@@ -61,12 +61,10 @@ end
 N = 512
 idx = [11, 14]
 rng = MersenneTwister(1234)
-rhs = [ones(N), zeros(N), randn(rng, N)]
+#rhs = [ones(N), zeros(N), randn(rng, N)]
+rhs = [ones(N)]
 
 # generate "holes" in matrix
-#n_holes_min = 8  # corresponding to partition size of M=64
-#n_holes_max = 16 # corresponding to partition size of M=32
-n_holes = 16
 n_part_min_size = 16
 n_part_max_size = 80
 n_holes_samples = 1000 # number of samples within partition bounds
@@ -106,6 +104,7 @@ for n_holes in n_holes_range
 end
 
 # set rows determined by hole indices to 0 (later: small epsilon)
+eps_fill = 1e-16
 for mtx_id in idx
     for n_holes in n_holes_range
         S = MatrixMarket.mmread("mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
@@ -115,18 +114,20 @@ for mtx_id in idx
         Threads.@threads for k in 1:n_holes_samples
             sample = holes[k]
             dl, d, du = copy(S_dl), copy(S_d), copy(S_du)
-            dl[sample] .= 0.0
-            du[sample] .= 0.0
+            #dl[sample] .= 0.0
+            dl[sample] .= eps_fill
+            #du[sample] .= 0.0
+            dl[sample] .= eps_fill
 
             # push!(S_samples, dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du))))
-            fname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%04i.mtx", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, k)
+            fname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i.mtx", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps_fill, k)
             S_new = dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du)))
             S_new_cond = cond(Array(S_new), 2)
             MatrixMarket.mmwrite(fname, S_new)
 
             # TODO: if the rhs is zero, it suffices to set zero as the solution vector
             for (bi, b) in enumerate(rhs)
-                jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%04i-rhs%i.json", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, k, bi) # 1-indexed positions
+                jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps_fill, k, bi) # 1-indexed positions
                 sol, res, acc = tridiag_exact_solution(S_new, b)
 
                 open(jname, "w") do f

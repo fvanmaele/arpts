@@ -80,9 +80,10 @@ import matplotlib.pyplot as plt
 # %%
 N_fine = 512
 #mtx_id = [11, 14] # TODO
-mtx_id = 14
+mtx_id = 11
 #n_holes = list(range(8, 17)) # TODO
-n_holes = 16
+n_holes = 8
+eps_fill = 1e-16
 
 # %%
 decoupled = glob.glob("../decoupled/{:0>2}/mtx-{}-{}-decoupled-*.json".format(n_holes, mtx_id, N_fine))
@@ -96,6 +97,7 @@ for d in decoupled:
 conds = [d['condition'] for d in mtx_data]
 maxacc = [d['max_accuracy'] for d in mtx_data]
 relres = [d['residual'] / np.ones(512) for d in mtx_data]  # b = 1 ... 1
+rhs = np.array(mtx_data[0]['rhs'])
 
 # %% Histogram on linear scale
 hist, bins, _ = plt.hist(conds, bins=50)
@@ -105,14 +107,16 @@ logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
 plt.hist(conds, bins=logbins)
 plt.xscale('log')
 #plt.plot(conds, maxacc, 'bo')
+plt.savefig("mtx-{}-{:0>2}-{}-cond".format(mtx_id, n_holes, len(decoupled)), dpi=108)
 
 # %%
-mtx_decoupled = glob.glob("../decoupled/{:0>2}/mtx-{}-{}-decoupled-*.mtx".format(n_holes, mtx_id, N_fine))
+mtx_decoupled = glob.glob("../decoupled_{:0>2}/{:0>2}/mtx-{}-{}-decoupled-*.mtx".format(
+    eps_fill, n_holes, mtx_id, N_fine))
 mtx_decoupled.sort()
 
+# %%
 fre_dec = []
 fre_static = []
-rhs = np.ones(N_fine)  # TODO: multiple right-hand sides
 M_range = range(32, 65)
 
 for i, m in enumerate(mtx_decoupled):
@@ -164,8 +168,10 @@ for k, M in enumerate(M_range):
     fre_idx.append(k+1)
     fre_lab.append(str(M))
 
+plt.figure(figsize=(10,4))
 plt.title("mtx_id {} - n_holes {} - n_samples {} - rhs {}".format(mtx_id, n_holes, len(mtx_decoupled), 1))
 plt.xticks(ticks=fre_idx, labels=fre_lab)
 plt.yscale('log')
 plt.errorbar(fre_idx, fre_mean, fre_std, linestyle='None', marker='o', capsize=3)
-plt.savefig("mtx-{}-{}-{}-rhs1".format(mtx_id, n_holes, len(mtx_decoupled)))
+plt.tight_layout()
+plt.savefig("mtx-{}-{:0>2}-{}-rhs1".format(mtx_id, n_holes, len(mtx_decoupled)), dpi=108)
