@@ -1,4 +1,5 @@
 #!/bin/bash
+# Workload distributed for 6 cores
 set -e
 
 # e = 0
