@@ -5,7 +5,48 @@ using MatrixMarket
 using SparseArrays
 using Random
 using Printf
-using Filesystem
+using ArgParse
+
+function parse_commandline
+    s = ArgParseSettings(autofix_names=true)
+
+    @add_arg_table! s begin
+        "N"
+            help = "matrix dimension"
+            arg_type = Int
+            required = true
+        "id"
+            help = "matrix ID number"
+            arg_type = Int
+            required = true
+        "n-holes"
+            help = "number of holes (decoupled systems) in each sample"
+            arg_type = Int
+            required = true
+        "eps"
+            help = "factor for multiplying elements at partition boundaries"
+            arg_type = Float64
+            required = true
+        "--min-part"
+            help = "minimum size of partition blocks"
+            arg_type = Int
+            default = 16
+        "--max-part"
+            help = "maximum size of partition blocks"
+            arg_type = Int
+            default = 80
+        "--n-samples"
+            help = "number of generated matrix samples"
+            arg_type = Int
+            default = 1000
+        "--seed"
+            help = "seed for random number generator"
+            arg_type = Int
+            default = 1234
+    end
+
+    return parse_args(s)
+end
 
 # The difference to `generate_random_partition` in python/partition.py is that
 # all samples have the same amount of partitions (no merging of partition boundaries)
@@ -15,7 +56,6 @@ function generate_holes(rng, n_last, n_holes, n_part_min, n_part_max, n_samples)
     attempts = 0
 
     while n_holes_done < n_samples
-        # TODO: find more efficient way to sample
         sample = sort(vcat([1; randperm(N)[1:n_holes]; n_last])) # sorted array of length n_holes+2
         is_valid = true  # determines if a partition is of a given size
 
@@ -57,36 +97,33 @@ function tridiag_exact_solution(T::AbstractMatrix{Float64}, rhs::AbstractVector{
     return sol, res, acc
 end
 
-# linear system with fixed right-hand side
-N = 512
-idx = [11, 14]
-rng = MersenneTwister(1234)
-rhs = [ones(N), randn(rng, N), map(sinpi, LinRange(0, 200, N))]
+# TODO: use main function with command-line arguments
+function main
+    parsed_args = parse_commandline()
+    
+    # linear system with fixed right-hand side
+    N    = parsed_args["N"]
+    idx  = parsed_args["id"]
+    seed = parsed_args["seed"]
+    eps  = parsed_args["eps"]
+    rng  = MersenneTwister(seed)
+    rhs  = [ones(N), randn(rng, N), map(sinpi, LinRange(0, 200, N))]
+    
+    # generate "holes" in matrix
+    n_part_min_size = parsed_args["n_part_min"]
+    n_part_max_size = parsed_args["n_part_max"]
+    n_samples = parsed_args["n_samples"]
+    n_holes = parsed_args["n_holes"]
+    v_holes = Vector{Vector{Vector{Int64}}}(undef, length(n_holes_range))
 
-# generate "holes" in matrix
-n_part_min_size = 16
-n_part_max_size = 80
-n_holes_samples = 1000 # number of samples within partition bounds
-
-# holes are generated independently from linear systems
-# rng = MersenneTwister(1234)
-# holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples; 
-#                        n_max_attempts=50000000)
-# @assert sum(unique(map(length, holes))) == n_holes
-# @assert length(unique(holes)) == length(holes)
-
-n_holes_range = 8:16
-v_holes = Vector{Vector{Vector{Int64}}}(undef, length(n_holes_range))
-
-# Generate samples for varying amount of holes
-Threads.@threads for n_holes in n_holes_range
-    rng = MersenneTwister(1234)
+    # Generate samples for given amount of holes
+    rng = MersenneTwister(seed)
     jname = @sprintf("decoupled/holes/holes-%i-%i-%i-%02i.json", N, n_part_min_size, n_part_max_size, n_holes)
 
     if isfile(jname)
         holes = JSON.parsefile(jname)
     else
-        holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_holes_samples)
+        holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_samples)
         @assert sum(unique(map(length, holes))) == n_holes
         @assert length(unique(holes)) == length(holes)
 
@@ -94,42 +131,34 @@ Threads.@threads for n_holes in n_holes_range
             JSON.print(f, holes)
         end
     end
-    v_holes[n_holes-n_holes_range[1]+1] = holes  # n_holes partitioned between threads
-end
 
-# set rows determined by hole indices to eps -> 0 * coeff
-eps_range = [0, 1e-16, 1e-12, 1e-8, 1e-4]
+    # eps_range = [0, 1e-16, 1e-12, 1e-8, 1e-4]
+    S = MatrixMarket.mmread("mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
+    S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
 
-for eps in eps_range
-    for mtx_id in idx
-        for n_holes in n_holes_range
-            S = MatrixMarket.mmread("mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
-            S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
-            holes = v_holes[n_holes-n_holes_range[1]+1]
+    Threads.@threads for k in 1:n_samples  # controlled by julia --threads=<N>
+        sample = holes[k]
+        dl, d, du = copy(S_dl), copy(S_d), copy(S_du)
+        dl[sample] .= eps * dl[sample]
+        dl[sample] .= eps * dl[sample]
 
-            Threads.@threads for k in 1:n_holes_samples
-                sample = holes[k]
-                dl, d, du = copy(S_dl), copy(S_d), copy(S_du)
-                dl[sample] .= eps * dl[sample]
-                dl[sample] .= eps * dl[sample]
+        # push!(S_samples, dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du))))
+        fname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i.mtx", 
+                          mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k)
+        S_new = dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du)))
+        S_new_cond = cond(Array(S_new), 2)
+        MatrixMarket.mmwrite(fname, S_new)
 
-                # push!(S_samples, dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du))))
-                fname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i.mtx", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k)
-                S_new = dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du)))
-                S_new_cond = cond(Array(S_new), 2)
-                MatrixMarket.mmwrite(fname, S_new)
+        for (bi, b) in enumerate(rhs)
+            jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", 
+                              mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k, bi) # 1-indexed positions
+            sol, res, acc = tridiag_exact_solution(S_new, b)
 
-                for (bi, b) in enumerate(rhs)
-                    jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k, bi) # 1-indexed positions
-                    sol, res, acc = tridiag_exact_solution(S_new, b)
-
-                    open(jname, "w") do f
-                        JSON.print(f, Dict("sample_1idx" => sample, "solution"  => sol, "max_accuracy" => acc, 
-                                            "residual" => res, "condition" => S_new_cond,  "rhs" => b, "n_holes"   => n_holes, 
-                                            "eps" => eps, "N" => N, "mtx_id" => mtx_id, 
-                                            "n_part_min" => n_part_min_size, "n_part_max" => n_part_max_size))
-                    end
-                end
+            open(jname, "w") do f
+                JSON.print(f, Dict("sample_1idx" => sample, "solution"  => sol, "max_accuracy" => acc, 
+                                    "residual" => res, "condition" => S_new_cond,  "rhs" => b, "n_holes" => n_holes, 
+                                    "eps" => eps, "N" => N, "mtx_id" => mtx_id, "seed" => seed,
+                                    "n_part_min" => n_part_min_size, "n_part_max" => n_part_max_size))
             end
         end
     end
