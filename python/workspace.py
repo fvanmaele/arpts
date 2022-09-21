@@ -19,17 +19,14 @@ import numpy as np
 
 from scipy.io import mmread
 
-# %%
 from main_static import main_static
 from main_cond_coarse import main_cond_coarse
 from main_random import main_random
 from main_rows import main_rows
 
-# %%
 def cond(A):
     print(np.format_float_scientific(np.linalg.cond(A)))
 
-# %%
 def print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoting):
     a = a_fine[begin:end]
     b = b_fine[begin:end]
@@ -69,10 +66,6 @@ def print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, begin, end, pivoti
 
 
 # %%
-# print_downwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
-# print_upwards_elimination(a_fine, b_fine, c_fine, d_fine, 0, 32, 'partial')
-
-# %%
 import json
 import glob
 import matplotlib.pyplot as plt
@@ -94,20 +87,26 @@ for d in decoupled:
     with open(d, 'r') as d_json:
         mtx_data.append(json.load(d_json))
 
-conds = [d['condition'] for d in mtx_data]
-maxacc = [d['max_accuracy'] for d in mtx_data]
-relres = [d['residual'] / np.ones(512) for d in mtx_data]  # b = 1 ... 1
-rhs = np.array(mtx_data[0]['rhs'])
+conds  = np.array([d['condition'] for d in mtx_data])
+maxacc = np.array([d['max_accuracy'] for d in mtx_data])
+relres = np.array([d['residual'] / np.ones(512) for d in mtx_data])
+rhs = np.array(mtx_data[0]['rhs'])  # fixed rhs for all samples
+
+# %% samples of highest condition, excluding outliers to keep single order of magnitude
+# (stddev as measure of numerical stability of algorithm)
+n_max_samples = 100
+# TODO: remove outliers?
+idx_decoupled = list(reversed(np.argsort(conds)))[10:n_max_samples+10]
 
 # %% Histogram on linear scale
+#hist, bins, _ = plt.hist(conds[idx_decoupled], bins=50)
 hist, bins, _ = plt.hist(conds, bins=50)
 
 # %% Histogram on log scale
 logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
-plt.hist(conds, bins=logbins)
+plt.hist(conds[idx_decoupled], bins=logbins)
 plt.xscale('log')
-#plt.plot(conds, maxacc, 'bo')
-plt.savefig("mtx-{}-{:0>2}-{}-cond".format(mtx_id, n_holes, len(decoupled)), dpi=108)
+#plt.savefig("mtx-{}-{:0>2}-{}-cond".format(mtx_id, n_holes, len(decoupled)), dpi=108)
 
 # %%
 mtx_decoupled = glob.glob("../decoupled/{:0>2}/mtx-{}-{}-decoupled-*.mtx".format(
@@ -118,9 +117,7 @@ mtx_decoupled.sort()
 fre_dec = []
 fre_static = []
 M_range = range(32, 65)
-n_max_samples = 100  # number of kept samples of highest condition, to reduce standard deviation
 
-idx_decoupled = list(reversed(np.argsort(conds)))[0:n_max_samples]
 for i in idx_decoupled:
 #for i, m in enumerate(mtx_decoupled):
     mtx = mmread(mtx_decoupled[i])
@@ -178,3 +175,12 @@ plt.yscale('log')
 plt.errorbar(fre_idx, fre_mean, fre_std, linestyle='None', marker='o', capsize=3)
 plt.tight_layout()
 plt.savefig("mtx-{}-{:0>2}-{}-rhs1".format(mtx_id, n_holes, len(mtx_decoupled)), dpi=108)
+
+# %%
+plt.yscale('log')
+plt.plot(fre_static_t[1])  # forward error for M = 33 on 100 samples
+
+# %%
+plt.yscale('log')
+plt.plot(conds[idx_decoupled])  # condition number for 100 samples
+# %%
