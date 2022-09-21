@@ -80,13 +80,13 @@ import matplotlib.pyplot as plt
 # %%
 N_fine = 512
 #mtx_id = [11, 14] # TODO
-mtx_id = 11
+mtx_id = 14
 #n_holes = list(range(8, 17)) # TODO
-n_holes = 8
-eps_fill = 1e-16
+n_holes = 12
 
 # %%
-decoupled = glob.glob("../decoupled/{:0>2}/mtx-{}-{}-decoupled-*.json".format(n_holes, mtx_id, N_fine))
+decoupled = glob.glob("../decoupled/{:0>2}/rhs1/mtx-{}-{}-decoupled-*.json".format(
+    n_holes, mtx_id, N_fine))
 decoupled.sort()
 
 mtx_data = []
@@ -110,18 +110,21 @@ plt.xscale('log')
 plt.savefig("mtx-{}-{:0>2}-{}-cond".format(mtx_id, n_holes, len(decoupled)), dpi=108)
 
 # %%
-mtx_decoupled = glob.glob("../decoupled_{:0>2}/{:0>2}/mtx-{}-{}-decoupled-*.mtx".format(
-    eps_fill, n_holes, mtx_id, N_fine))
+mtx_decoupled = glob.glob("../decoupled/{:0>2}/mtx-{}-{}-decoupled-*.mtx".format(
+    n_holes, mtx_id, N_fine))
 mtx_decoupled.sort()
 
 # %%
 fre_dec = []
 fre_static = []
 M_range = range(32, 65)
+n_max_samples = 100  # number of kept samples of highest condition, to reduce standard deviation
 
-for i, m in enumerate(mtx_decoupled):
-    mtx = mmread(m)
-    print(m, ", cond: ", mtx_data[i]['condition'])
+idx_decoupled = list(reversed(np.argsort(conds)))[0:n_max_samples]
+for i in idx_decoupled:
+#for i, m in enumerate(mtx_decoupled):
+    mtx = mmread(mtx_decoupled[i])
+    print(mtx_decoupled[i], ", cond: ", mtx_data[i]['condition'])
     a_fine_m, b_fine_m, c_fine_m = matrix.scipy_matrix_to_bands(mtx)
     x_fine_m = np.array(mtx_data[i]['solution'])
 
@@ -152,8 +155,8 @@ for i, m in enumerate(mtx_decoupled):
 
 # %%
 plt.yscale('log')
-plt.plot(range(0, 1000), fre_dec, 'o')
-plt.plot(range(0, 1000), [fre_static[id][0] for id in range(0, len(fre_static))], 'o')
+plt.plot(range(0, n_max_samples), fre_dec, 'o')
+plt.plot(range(0, n_max_samples), [fre_static[id][0] for id in range(0, len(fre_static))], 'o')
 
 # %%
 fre_idx = [0]
