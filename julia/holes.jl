@@ -7,56 +7,15 @@ using Random
 using Printf
 using ArgParse
 
-function parse_commandline
-    s = ArgParseSettings(autofix_names=true)
-
-    @add_arg_table! s begin
-        "N"
-            help = "matrix dimension"
-            arg_type = Int
-            required = true
-        "id"
-            help = "matrix ID number"
-            arg_type = Int
-            required = true
-        "n-holes"
-            help = "number of holes (decoupled systems) in each sample"
-            arg_type = Int
-            required = true
-        "eps"
-            help = "factor for multiplying elements at partition boundaries"
-            arg_type = Float64
-            required = true
-        "--min-part"
-            help = "minimum size of partition blocks"
-            arg_type = Int
-            default = 16
-        "--max-part"
-            help = "maximum size of partition blocks"
-            arg_type = Int
-            default = 80
-        "--n-samples"
-            help = "number of generated matrix samples"
-            arg_type = Int
-            default = 1000
-        "--seed"
-            help = "seed for random number generator"
-            arg_type = Int
-            default = 1234
-    end
-
-    return parse_args(s)
-end
-
 # The difference to `generate_random_partition` in python/partition.py is that
 # all samples have the same amount of partitions (no merging of partition boundaries)
-function generate_holes(rng, n_last, n_holes, n_part_min, n_part_max, n_samples)
+function generate_holes(rng, n, n_holes, n_part_min, n_part_max, n_samples)
     holes = Vector{Vector{Int64}}()
     n_holes_done = 0
     attempts = 0
 
     while n_holes_done < n_samples
-        sample = sort(vcat([1; randperm(N)[1:n_holes]; n_last])) # sorted array of length n_holes+2
+        sample = sort(vcat([1; randperm(n)[1:n_holes]; n])) # sorted array of length n_holes+2
         is_valid = true  # determines if a partition is of a given size
 
         for (part_first, part_last) in Iterators.zip(sample, sample[2:length(sample)])
@@ -97,28 +56,67 @@ function tridiag_exact_solution(T::AbstractMatrix{Float64}, rhs::AbstractVector{
     return sol, res, acc
 end
 
-# TODO: use main function with command-line arguments
-function main
+function parse_commandline()
+    s = ArgParseSettings(autofix_names=true)
+
+    @add_arg_table! s begin
+        "N"
+            help = "matrix dimension"
+            arg_type = Int
+            required = true
+        "id"
+            help = "matrix ID number"
+            arg_type = Int
+            required = true
+        "n-holes"
+            help = "number of holes (decoupled systems) in each sample"
+            arg_type = Int
+            required = true
+        "eps"
+            help = "factor for multiplying elements at partition boundaries"
+            arg_type = Float64
+            required = true
+        "--min-part"
+            help = "minimum size of partition blocks"
+            arg_type = Int
+            default = 16
+        "--max-part"
+            help = "maximum size of partition blocks"
+            arg_type = Int
+            default = 80
+        "--n-samples"
+            help = "number of generated matrix samples"
+            arg_type = Int
+            default = 1000
+        "--seed"
+            help = "seed for random number generator"
+            arg_type = Int
+            default = 1234
+    end
+
+    return parse_args(s)
+end
+
+function main(::Vector{String})
     parsed_args = parse_commandline()
     
     # linear system with fixed right-hand side
-    N    = parsed_args["N"]
-    idx  = parsed_args["id"]
+    N = parsed_args["N"]
+    mtx_id = parsed_args["id"]
     seed = parsed_args["seed"]
-    eps  = parsed_args["eps"]
-    rng  = MersenneTwister(seed)
-    rhs  = [ones(N), randn(rng, N), map(sinpi, LinRange(0, 200, N))]
+    eps = parsed_args["eps"]
+    rng = MersenneTwister(seed)
+    rhs = [ones(N), randn(rng, N), map(sinpi, LinRange(0, 200, N))]
     
     # generate "holes" in matrix
-    n_part_min_size = parsed_args["n_part_min"]
-    n_part_max_size = parsed_args["n_part_max"]
+    n_part_min_size = parsed_args["min_part"]
+    n_part_max_size = parsed_args["max_part"]
     n_samples = parsed_args["n_samples"]
     n_holes = parsed_args["n_holes"]
-    v_holes = Vector{Vector{Vector{Int64}}}(undef, length(n_holes_range))
 
     # Generate samples for given amount of holes
     rng = MersenneTwister(seed)
-    jname = @sprintf("decoupled/holes/holes-%i-%i-%i-%02i.json", N, n_part_min_size, n_part_max_size, n_holes)
+    jname = @sprintf("holes-%i-%i-%i-%02i.json", N, n_part_min_size, n_part_max_size, n_holes)
 
     if isfile(jname)
         holes = JSON.parsefile(jname)
@@ -133,7 +131,7 @@ function main
     end
 
     # eps_range = [0, 1e-16, 1e-12, 1e-8, 1e-4]
-    S = MatrixMarket.mmread("mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
+    S = MatrixMarket.mmread("../mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
     S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
 
     Threads.@threads for k in 1:n_samples  # controlled by julia --threads=<N>
@@ -150,6 +148,7 @@ function main
         MatrixMarket.mmwrite(fname, S_new)
 
         for (bi, b) in enumerate(rhs)
+            println("Solving [" * string(k) * "] for rhs " * string(bi))
             jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", 
                               mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k, bi) # 1-indexed positions
             sol, res, acc = tridiag_exact_solution(S_new, b)
@@ -163,3 +162,5 @@ function main
         end
     end
 end
+
+main(ARGS)

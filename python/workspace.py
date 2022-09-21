@@ -183,4 +183,3 @@ plt.plot(fre_static_t[1])  # forward error for M = 33 on 100 samples
 # %%
 plt.yscale('log')
 plt.plot(conds[idx_decoupled])  # condition number for 100 samples
-# %%
