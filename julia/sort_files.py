@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import os
 import shutil
 import re
@@ -15,8 +15,13 @@ for i, m in enumerate(mtx):
     mtx_id = match.group(1)
     n_holes = match.group(2)
     eps = match.group(3)
-    root_dest = os.path.join("decoupled_eps_" + eps, mtx_id)
 
+    try:
+        os.mkdir("decoupled_eps_" + eps)
+    except FileExistsError:
+        pass
+
+    root_dest = os.path.join("decoupled_eps_" + eps, mtx_id)
     try:
         os.mkdir(root_dest)
     except FileExistsError:
