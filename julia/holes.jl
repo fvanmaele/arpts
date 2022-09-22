@@ -147,17 +147,24 @@ function main(::Vector{String})
         S_new_cond = cond(Array(S_new), 2)
         MatrixMarket.mmwrite(fname, S_new)
 
+        # Generate file with metadata on generated matrices
+        mname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json",
+            mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k)
+        open(mname, "w") do f
+            JSON.print(f, Dict("sample_1idx" => sample, "condition" => S_new_cond, "n_holes" => n_holes,
+                               "eps" => eps, "N" => N, "mtx_id" => mtx_id, "seed" => seed, 
+                               "n_part_min" => n_part_min_size, "n_part_max" => n_part_max_size))
+        end
+
+        # Generate file with (multiprecision) solution of linear system, for each right-hand side
         for (bi, b) in enumerate(rhs)
             println("Solving [" * string(k) * "] for rhs " * string(bi))
-            jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", 
-                              mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k, bi) # 1-indexed positions
             sol, res, acc = tridiag_exact_solution(S_new, b)
-
+            
+            jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", 
+                mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k, bi)
             open(jname, "w") do f
-                JSON.print(f, Dict("sample_1idx" => sample, "solution"  => sol, "max_accuracy" => acc, 
-                                    "residual" => res, "condition" => S_new_cond,  "rhs" => b, "n_holes" => n_holes, 
-                                    "eps" => eps, "N" => N, "mtx_id" => mtx_id, "seed" => seed,
-                                    "n_part_min" => n_part_min_size, "n_part_max" => n_part_max_size))
+                JSON.print(f, Dict("solution" => sol, "max_accuracy" => acc,  "residual" => res, "rhs" => b))
             end
         end
     end

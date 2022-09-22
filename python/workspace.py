@@ -72,9 +72,7 @@ import matplotlib.pyplot as plt
 
 # %%
 N_fine = 512
-#mtx_id = [11, 14] # TODO
 mtx_id = 14
-#n_holes = list(range(8, 17)) # TODO
 n_holes = 12
 
 # %%
@@ -95,7 +93,6 @@ rhs = np.array(mtx_data[0]['rhs'])  # fixed rhs for all samples
 # %% samples of highest condition, excluding outliers to keep single order of magnitude
 # (stddev as measure of numerical stability of algorithm)
 n_max_samples = 100
-# TODO: remove outliers?
 idx_decoupled = list(reversed(np.argsort(conds)))[10:n_max_samples+10]
 
 # %% Histogram on linear scale
