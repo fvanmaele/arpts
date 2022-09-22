@@ -168,7 +168,7 @@ function main(::Vector{String})
         for (bi, b) in enumerate(rhs)
             println("Solving [" * string(k) * "] for rhs " * string(bi))
             sol, res, acc = tridiag_exact_solution(S_new, b)
-            
+
             jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", 
                 mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k, bi)
             
