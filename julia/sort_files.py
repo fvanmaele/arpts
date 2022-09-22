@@ -12,10 +12,10 @@ for i, m in enumerate(mtx):
     root = os.path.basename(root)
     match = re.search(r'mtx-(\d+)-\d+-decoupled-\d+-\d+-(\d+)-(\d\.\d+e[\+-]\d+)-\d+', root)
 
-    N_fine = match.group(1)
+    mtx_id = match.group(1)
     n_holes = match.group(2)
     eps = match.group(3)
-    root_dest = os.path.join("decoupled_eps_" + eps, N_fine)
+    root_dest = os.path.join("decoupled_eps_" + eps, mtx_id)
 
     try:
         os.mkdir(root_dest)
