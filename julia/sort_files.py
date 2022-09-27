@@ -6,11 +6,13 @@ import glob
 
 mtx = glob.glob("mtx-*.mtx")
 mtx.sort()
+mtx_json = glob.glob("mtx-*.json")
+mtx_json.sort()
 
-for i, m in enumerate(mtx):
+for i, m in enumerate(mtx + mtx_json):
     root, ext = os.path.splitext(m)
     root = os.path.basename(root)
-    match = re.search(r'mtx-(\d+)-\d+-decoupled-\d+-\d+-(\d+)-(\d\.\d+e[\+-]\d+)-\d+', root)
+    match = re.search(r'mtx-(\d+)-\d+-decoupled-\d+-\d+-(\d+)-(\d\.\d+e[\+-]\d+)-\d+(-rhs\d)?', root)
 
     mtx_id = match.group(1)
     n_holes = match.group(2)
@@ -33,11 +35,7 @@ for i, m in enumerate(mtx):
     except FileExistsError:
         pass
 
-    paths = [
-        root + ext,
-        root + '-rhs1.json',
-        root + '-rhs2.json',
-        root + '-rhs3.json',
-    ]
-    for p in paths:
-        shutil.move(p, root_dest_n)
+    try:
+        shutil.move(root + ext, root_dest_n)
+    except shutil.Error:
+        pass  # file exists
