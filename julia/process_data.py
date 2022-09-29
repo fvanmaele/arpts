@@ -29,7 +29,7 @@ def plot_errbar_rhs(fre_dec, fre_static, M_range, mtx_id, n_holes, n_samples, rh
         fre_lab.append(str(M))
 
     plt.figure(figsize=(10, 4))
-    plt.title("mtx_id {} - n_holes {} - n_samples {} - rhs {} - eps {:.1e}".format(mtx_id, n_holes, n_samples, str(rhs_i), str(eps)))
+    plt.title("mtx_id {} - n_holes {} - n_samples {} - rhs {} - eps {:.1e}".format(mtx_id, n_holes, n_samples, rhs_i, eps))
     plt.xticks(ticks=fre_idx, labels=fre_lab)
 
     plt.yscale('log')
@@ -49,7 +49,7 @@ def process_directory(root):
     for m in mtx_decoupled:
         m_name, m_ext = os.path.splitext(m)
         # XXX: m_name + ".json" (matrix metadata)
-        with open(m_name + "-rhs1.json", 'r') as m_json:
+        with open(m_name + ".json", 'r') as m_json:
             mtx_data.append(json.load(m_json))
 
     # XXX: flat arrays mtx_data['mtx_id']
@@ -100,13 +100,13 @@ def process_directory(root):
         for i in idx_qnt:
             # Convert coefficient matrix into bands
             mtx = mmread(mtx_decoupled[i])
-            print(mtx_decoupled[i], ", cond: ", rhs_data[i]['condition'])
+            print(mtx_decoupled[i], ", cond: ", mtx_data[i]['condition'])
 
             a_fine_m, b_fine_m, c_fine_m = matrix.scipy_matrix_to_bands(mtx)
             x_fine_m = np.array(rhs_data[i]['solution'])
 
             # Convert holes (1-indexed) into partition (0-indexed)
-            holes_0idx = np.array(rhs_data[i]['sample_1idx']) - 1
+            holes_0idx = np.array(mtx_data[i]['sample_1idx']) - 1
             partition_decoupled = [[0, holes_0idx[0]]]
 
             for prev, curr in zip(holes_0idx, holes_0idx[1:]):

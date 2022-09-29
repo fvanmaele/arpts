@@ -35,7 +35,8 @@ for i, m in enumerate(mtx + mtx_json):
     except FileExistsError:
         pass
 
-    try:
-        shutil.move(root + ext, root_dest_n)
-    except shutil.Error:
-        pass  # file exists
+    shutil.move(root + ext, os.path.join(root_dest_n, root + ext))
+    # try:
+    #     shutil.move(root + ext, root_dest_n)
+    # except shutil.Error:
+    #     pass  # file exists
