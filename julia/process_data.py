@@ -29,13 +29,13 @@ def plot_errbar_rhs(fre_dec, fre_static, M_range, mtx_id, n_holes, n_samples, rh
         fre_lab.append(str(M))
 
     plt.figure(figsize=(10, 4))
-    plt.title("mtx_id {} - n_holes {} - n_samples {} - rhs {} - eps {}".format(mtx_id, n_holes, n_samples, str(rhs_i), str(eps)))
+    plt.title("mtx_id {} - n_holes {} - n_samples {} - rhs {} - eps {:.1e}".format(mtx_id, n_holes, n_samples, str(rhs_i), str(eps)))
     plt.xticks(ticks=fre_idx, labels=fre_lab)
 
     plt.yscale('log')
     plt.errorbar(fre_idx, fre_mean, fre_std, linestyle='None', marker='o', capsize=3)
     plt.tight_layout()
-    plt.savefig("mtx-{}-{:0>2}-{}-rhs{}-eps{}.png".format(mtx_id, n_holes, n_samples, rhs_i, eps), dpi=108)
+    plt.savefig("mtx-{}-{:0>2}-{}-rhs{}-eps{:.1e}.png".format(mtx_id, n_holes, n_samples, rhs_i, eps), dpi=108)
 
 
 def process_directory(root):
@@ -67,7 +67,7 @@ def process_directory(root):
     plt.clf()
     plt.hist(conds, bins=logbins)
     plt.xscale('log')
-    plt.savefig("mtx-{}-{:0>2}-{}-{}-cond.png".format(mtx_id, n_holes, n_samples, eps), dpi=108)
+    plt.savefig("mtx-{}-{:0>2}-{}-eps{:.1e}-cond.png".format(mtx_id, n_holes, n_samples, eps), dpi=108)
 
     # Take quantiles of samples in cases of (strongly) varying condition numbers
     # (stddev as measure of numerical stability of algorithm)
