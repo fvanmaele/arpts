@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 #eps=(0.0 1e-16 1e-12 1e-8 1e-4 1e-3 1e-2 1e-1)
-eps=(0.0 1e-16 1e-12 1e-8 1e-4)
+eps=(0.0)
 #holes=($(seq 8 16))
 holes=(8 12 16)
 
