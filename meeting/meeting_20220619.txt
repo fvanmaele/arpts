@@ -1,0 +1,60 @@
+1) Einfluss (relative) Größe des Spikes
+
+Matrix 14, Block 0 
+
+0..32:	cond_coarse = 153.82112280335596
+	fre = 416.6859039556118
+0..33:	cond_coarse = 793300625092.6483
+	fre = 312647.2170238687
+0..42:	cond_coarse = 15.619278665766391  (Grenze mit relabs(lower spike) = min)
+	fre = 164.68153643770333
+0..49:	cond_coarse = 45404763084.080055  (Grenze mit relabs(lower_spike) = max)
+	fre = 711536.5083302767
+
+
+2) Up/downwards Blöcke ohne Betrachten der Spikes
+
+Getestet an Beispiel 14, N=512
+
+FRE ~ 10^-4, vs. M=32 FRE ~ 10^-8
+
+
+3) Kurve der Spikes
+
+i.A. nicht monoton fallend
+
+insb. merkbar ohne Pivotisierung (explodierende Werte)
+
+=> Ansätze welche Spikes ausser Betracht lassen (cf. 2) ggf. weniger wirkungsvoll
+
+
+
+4) Verhältnis zwischen spike und eliminierte Reihenelemente:
+
+matrix 14, block 0
+
+* upwards elimination, "guter" Fall
+
+row[2] : -3.4412515349929233e-09	-0.2514670177986101 	-0.11375549438455672 	0.0 -0.7438754259300757
+row[1] : 0.0				8.959080750724299e-09 	-0.034409075480732784 	0.0 -0.15615121874203836
+
+* upwards elimination, "schlechter" Fall
+
+row[2] : 0.0002965145179829173		8.133412997360384e-06	-0.3653647124775727	0.0 -1.8851573148532066
+row[1] : 0.0				0.000296514516913638	-0.3653647124775727	0.0 -1.8851646777257411
+
+ggf. könnte der schlechte Fall "erkannt" werden durch vergleich mit Zeile 2
+
+
+* downwards elimination, "guter" Fall
+
+row[31] : -0.00022369538844039575	2.7757173832145865e-06	0.2756370981992593	0.0 1.4222115763861298
+
+* downwards elimination, "schlechter" Fall
+
+row[31] : -0.00022369538844039575	2.7757173832145865e-06	0.2756370981992593	0.0 1.4222115763861298
+row[32] : -0.00022369538844039575	0.2756370981992877	1.314961375988426e-06	0.0 1.422202558316694
+
+
+5) normal verteilte Grenzen (TODO: kumulative Verteilung)
+
