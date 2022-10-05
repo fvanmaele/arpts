@@ -118,67 +118,98 @@ function main(::Vector{String})
     rng = MersenneTwister(seed)
     jname = @sprintf("holes-%i-%i-%i-%02i.json", N, n_part_min_size, n_part_max_size, n_holes)
 
-    if isfile(jname)
-        holes = JSON.parsefile(jname)
-    else
-        holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size, n_samples)
-        @assert sum(unique(map(length, holes))) == n_holes
-        @assert length(unique(holes)) == length(holes)
+    # Use original matrix with no holes or modified coefficients
+    if eps == one(Float64)
+        S = MatrixMarket.mmread("../mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
+        S_cond = cond(Array(S), 2)
 
-        open(jname, "w") do f
-            JSON.print(f, holes)
+        mname = @sprintf("mtx-%i-%i.json", mtx_id, N)
+        open(mname, "w") do f
+            JSON.print(f, Dict("condition" => S_cond, 
+                               "N"         => N, 
+                               "mtx_id"    => mtx_id))
         end
-    end
-
-    # eps_range = [0, 1e-16, 1e-12, 1e-8, 1e-4]
-    S = MatrixMarket.mmread("../mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
-    S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
-
-    Threads.@threads for k in 1:n_samples  # controlled by julia --threads=<N>
-        sample = holes[k]
-        dl, d, du = copy(S_dl), copy(S_d), copy(S_du)
-        dl[sample] .= eps * dl[sample]
-        dl[sample] .= eps * dl[sample]
-
-        # push!(S_samples, dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du))))
-        fname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i.mtx", 
-            mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k)
-
-        S_new = dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du)))
-        S_new_cond = cond(Array(S_new), 2)
-        MatrixMarket.mmwrite(fname, S_new)
-
-        # Generate file with metadata on generated matrices
-        mname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i.json",
-            mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k)
         
-            open(mname, "w") do f
-            JSON.print(f, Dict("sample_1idx" => sample, 
-                               "condition"   => S_new_cond, 
-                               "n_holes"     => n_holes,
-                               "eps"         => eps, 
-                               "N"           => N, 
-                               "mtx_id"      => mtx_id, 
-                               "seed"        => seed, 
-                               "n_part_min"  => n_part_min_size, 
-                               "n_part_max"  => n_part_max_size))
-        end
-
-        # Generate file with (multiprecision) solution of linear system, for each right-hand side
+        # Generate file with (multiprecision) solution of linear system, for
+        # each right-hand side
         for (bi, b) in enumerate(rhs)
-            println("Solving [" * string(k) * "] for rhs " * string(bi))
-            sol, res, acc = tridiag_exact_solution(S_new, b)
+            println("Solving [0] for rhs " * string(bi))
+            sol, res, acc = tridiag_exact_solution(S, b)
 
-            jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", 
-                mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k, bi)
-            
-                open(jname, "w") do f
+            jname = @sprintf("mtx-%i-%i-rhs%i.json", mtx_id, N, bi)
+            open(jname, "w") do f
                 JSON.print(f, Dict("solution"     => sol, 
                                    "max_accuracy" => acc,  
                                    "residual"     => res, 
                                    "rhs"          => b))
             end
         end
+    # Otherwise, create samples for specified epsilon
+    else
+        if isfile(jname)
+            holes = JSON.parsefile(jname)
+        else
+            holes = generate_holes(rng, N, n_holes, n_part_min_size, n_part_max_size,
+                                   n_samples)
+            @assert sum(unique(map(length, holes))) == n_holes
+            @assert length(unique(holes)) == length(holes)
+
+            open(jname, "w") do f
+                JSON.print(f, holes)
+            end
+        end
+
+        # eps_range = [0, 1e-16, 1e-12, 1e-8, 1e-4]
+        S = MatrixMarket.mmread("../mtx/" * string(mtx_id) * "-" * string(N) * ".mtx")
+        S_dl, S_d, S_du = diag(S, -1), diag(S), diag(S, 1)
+
+        Threads.@threads for k in 1:n_samples  # controlled by julia --threads=<N>
+            sample = holes[k]
+            dl, d, du = copy(S_dl), copy(S_d), copy(S_du)
+            dl[sample] .= eps * dl[sample]
+            dl[sample] .= eps * dl[sample]
+
+            # push!(S_samples, dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du))))
+            fname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i.mtx", 
+                             mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k)
+
+            S_new = dropzeros(SparseMatrixCSC(Tridiagonal(dl, d, du)))
+            S_new_cond = cond(Array(S_new), 2)
+            MatrixMarket.mmwrite(fname, S_new)
+
+            # Generate file with metadata on generated matrices
+            mname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i.json",
+                             mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k)
+            
+            open(mname, "w") do f
+                JSON.print(f, Dict("sample_1idx" => sample, 
+                                   "condition"   => S_new_cond, 
+                                   "n_holes"     => n_holes,
+                                   "eps"         => eps, 
+                                   "N"           => N, 
+                                   "mtx_id"      => mtx_id, 
+                                   "seed"        => seed, 
+                                   "n_part_min"  => n_part_min_size, 
+                                   "n_part_max"  => n_part_max_size))
+            end
+
+            # Generate file with (multiprecision) solution of linear system, for
+            # each right-hand side
+            for (bi, b) in enumerate(rhs)
+                println("Solving [" * string(k) * "] for rhs " * string(bi))
+                sol, res, acc = tridiag_exact_solution(S_new, b)
+
+                jname = @sprintf("mtx-%i-%i-decoupled-%i-%i-%02i-%2.2e-%04i-rhs%i.json", 
+                                 mtx_id, N, n_part_min_size, n_part_max_size, n_holes, eps, k, bi)
+                
+                open(jname, "w") do f
+                    JSON.print(f, Dict("solution"     => sol, 
+                                       "max_accuracy" => acc,  
+                                       "residual"     => res, 
+                                       "rhs"          => b))
+                end
+            end
+        end        
     end
 end
 
